@@ -1,0 +1,188 @@
+#ifndef   PURRR_INTERNAL_H_
+#define   PURRR_INTERNAL_H_
+
+#include "purrr/purrr.h"
+
+#include <vulkan/vulkan.h>
+#include <glfw/glfw3.h>
+
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+  purrr_api_t api;
+  GLFWwindow *window;
+} _purrr_window_t;
+
+
+
+typedef struct _purrr_texture_s _purrr_texture_t;
+typedef bool (*_purrr_texture_init_t)(_purrr_texture_t *);
+typedef void (*_purrr_texture_cleanup_t)(_purrr_texture_t *);
+typedef bool (*_purrr_texture_load_t)(_purrr_texture_t *, uint8_t *, uint32_t, uint32_t);
+typedef bool (*_purrr_texture_copy_t)(_purrr_texture_t *, _purrr_texture_t *, uint32_t, uint32_t);
+
+typedef struct _purrr_pipeline_descriptor_s _purrr_pipeline_descriptor_t;
+typedef bool (*_purrr_pipeline_descriptor_init_t)(_purrr_pipeline_descriptor_t *);
+typedef void (*_purrr_pipeline_descriptor_cleanup_t)(_purrr_pipeline_descriptor_t *);
+
+typedef struct _purrr_pipeline_s _purrr_pipeline_t;
+typedef bool (*_purrr_pipeline_init_t)(_purrr_pipeline_t *);
+typedef void (*_purrr_pipeline_cleanup_t)(_purrr_pipeline_t *);
+
+typedef struct _purrr_render_target_s _purrr_render_target_t;
+typedef bool (*_purrr_render_target_init_t)(_purrr_render_target_t *);
+typedef void (*_purrr_render_target_cleanup_t)(_purrr_render_target_t *);
+
+typedef struct _purrr_mesh_s _purrr_mesh_t;
+typedef bool (*_purrr_mesh_init_t)(_purrr_mesh_t *);
+typedef void (*_purrr_mesh_cleanup_t)(_purrr_mesh_t *);
+
+typedef struct _purrr_renderer_s _purrr_renderer_t;
+typedef bool (*_purrr_renderer_init_t)(_purrr_renderer_t *);
+typedef void (*_purrr_renderer_cleanup_t)(_purrr_renderer_t *);
+typedef bool (*_purrr_renderer_begin_frame_t)(_purrr_renderer_t *);
+typedef bool (*_purrr_renderer_begin_render_target_t)(_purrr_renderer_t *, _purrr_render_target_t *);
+typedef bool (*_purrr_renderer_bind_pipeline_t)(_purrr_renderer_t *, _purrr_pipeline_t *);
+typedef bool (*_purrr_renderer_draw_mesh_t)(_purrr_renderer_t *, _purrr_mesh_t *);
+typedef bool (*_purrr_renderer_end_render_target_t)(_purrr_renderer_t *);
+typedef bool (*_purrr_renderer_end_frame_t)(_purrr_renderer_t *);
+typedef bool (*_purrr_renderer_wait_t)(_purrr_renderer_t *);
+
+// texture
+
+struct _purrr_texture_s {
+  bool initialized;
+  _purrr_renderer_t *renderer;
+  purrr_texture_info_t *info;
+
+  _purrr_texture_init_t init;
+  _purrr_texture_cleanup_t cleanup;
+  _purrr_texture_load_t load;
+  _purrr_texture_copy_t copy;
+
+  void *data_ptr;
+};
+
+void _purrr_texture_free(_purrr_texture_t *texture);
+
+bool _purrr_texture_vulkan_init(_purrr_texture_t *texture);
+void _purrr_texture_vulkan_cleanup(_purrr_texture_t *texture);
+bool _purrr_texture_vulkan_load(_purrr_texture_t *dst, uint8_t *src, uint32_t src_width, uint32_t src_height);
+bool _purrr_texture_vulkan_copy(_purrr_texture_t *dst, _purrr_texture_t *src, uint32_t src_width, uint32_t src_height);
+
+// pipeline descriptor (render pass)
+
+struct _purrr_pipeline_descriptor_s {
+  bool initialized;
+  _purrr_renderer_t *renderer;
+  purrr_pipeline_descriptor_info_t *info;
+
+  _purrr_pipeline_descriptor_init_t init;
+  _purrr_pipeline_descriptor_cleanup_t cleanup;
+
+  void *data_ptr;
+};
+
+void _purrr_pipeline_descriptor_free(_purrr_pipeline_descriptor_t *pipeline_descriptor);
+
+bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeline_descriptor);
+void _purrr_pipeline_descriptor_vulkan_cleanup(_purrr_pipeline_descriptor_t *pipeline_descriptor);
+
+// pipeline
+
+struct _purrr_pipeline_s {
+  bool initialized;
+  _purrr_renderer_t *renderer;
+  purrr_pipeline_info_t *info;
+
+  _purrr_pipeline_init_t init;
+  _purrr_pipeline_cleanup_t cleanup;
+
+  void *data_ptr;
+};
+
+void _purrr_pipeline_free(_purrr_pipeline_t *pipeline);
+
+bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline);
+void _purrr_pipeline_vulkan_cleanup(_purrr_pipeline_t *pipeline);
+
+// render target (frame buffer)
+
+struct _purrr_render_target_s {
+  bool initialized;
+  _purrr_renderer_t *renderer;
+  _purrr_pipeline_descriptor_t *descriptor;
+
+  _purrr_texture_t **textures;
+  uint32_t texture_count;
+
+  uint32_t width, height;
+
+  _purrr_render_target_init_t init;
+  _purrr_render_target_cleanup_t cleanup;
+
+  void *data_ptr;
+};
+
+void _purrr_render_target_free(_purrr_render_target_t *render_target);
+
+bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target);
+void _purrr_render_target_vulkan_cleanup(_purrr_render_target_t *render_target);
+
+// mesh
+
+struct _purrr_mesh_s {
+  bool initialized;
+  _purrr_renderer_t *renderer;
+  purrr_mesh_info_t *info;
+
+  _purrr_mesh_init_t init;
+  _purrr_mesh_cleanup_t cleanup;
+
+  void *data_ptr;
+};
+
+void _purrr_mesh_free(_purrr_mesh_t *mesh);
+
+bool _purrr_mesh_vulkan_init(_purrr_mesh_t *mesh);
+void _purrr_mesh_vulkan_cleanup(_purrr_mesh_t *mesh);
+
+// renderer
+
+struct _purrr_renderer_s {
+  bool initialized;
+  purrr_renderer_info_t *info;
+  purrr_api_t api;
+
+  _purrr_renderer_init_t init;
+  _purrr_renderer_cleanup_t cleanup;
+  _purrr_renderer_begin_frame_t begin_frame;
+  _purrr_renderer_begin_render_target_t begin_render_target;
+  _purrr_renderer_bind_pipeline_t bind_pipeline;
+  _purrr_renderer_draw_mesh_t draw_mesh;
+  _purrr_renderer_end_render_target_t end_render_target;
+  _purrr_renderer_end_frame_t end_frame;
+  _purrr_renderer_wait_t wait;
+
+  struct {
+    purrr_renderer_resize_cb resize;
+  } callbacks;
+
+  void *user_ptr;
+  void *data_ptr;
+};
+
+void _purrr_renderer_free(_purrr_renderer_t *renderer);
+
+bool _purrr_renderer_vulkan_init(_purrr_renderer_t *renderer);
+void _purrr_renderer_vulkan_cleanup(_purrr_renderer_t *renderer);
+bool _purrr_renderer_vulkan_begin_frame(_purrr_renderer_t *renderer);
+bool _purrr_renderer_vulkan_begin_render_target(_purrr_renderer_t *renderer, _purrr_render_target_t *render_target);
+bool _purrr_renderer_vulkan_bind_pipeline(_purrr_renderer_t *renderer, _purrr_pipeline_t *pipeline);
+bool _purrr_renderer_vulkan_draw_mesh(_purrr_renderer_t *renderer, _purrr_mesh_t *mesh);
+bool _purrr_renderer_vulkan_end_render_target(_purrr_renderer_t *renderer);
+bool _purrr_renderer_vulkan_end_frame(_purrr_renderer_t *renderer);
+bool _purrr_renderer_vulkan_wait(_purrr_renderer_t *renderer);
+
+#endif // PURRR_INTERNAL_H_
