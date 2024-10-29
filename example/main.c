@@ -10,15 +10,15 @@ static uint32_t gIndices[] = {
 };
 
 typedef struct {
-  float pos[4];
-  float uv[4];
+  float pos[3];
+  float uv[2];
 } vertex_t;
 
 static vertex_t gVertices[] = {
-  { { -0.5f, -0.5f, 0.0f, 0.0f }, { 1.0f, 0.0f }, },
-  { {  0.5f, -0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f }, },
-  { {  0.5f,  0.5f, 0.0f, 0.0f }, { 0.0f, 1.0f }, },
-  { { -0.5f,  0.5f, 0.0f, 0.0f }, { 1.0f, 1.0f }, },
+  { { -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f }, },
+  { {  0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f }, },
+  { {  0.5f,  0.5f, 0.0f }, { 0.0f, 1.0f }, },
+  { { -0.5f,  0.5f, 0.0f }, { 1.0f, 1.0f }, },
 };
 
 void resize(void *data) {
@@ -61,13 +61,13 @@ int main(void) {
   purrr_vertex_info_t vertex_infos[] = {
     (purrr_vertex_info_t){
       .format = PURRR_FORMAT_RGB32F,
-      .size = 16,
+      .size = 12,
       .offset = 0,
     },
     (purrr_vertex_info_t){
       .format = PURRR_FORMAT_RG32F,
-      .size = 16,
-      .offset = 16,
+      .size = 8,
+      .offset = 12,
     },
   };
 

@@ -674,11 +674,12 @@ void _purrr_render_target_vulkan_cleanup(_purrr_render_target_t *render_target) 
   if (!data || !renderer_data) return;
   if (render_target->initialized) {
     vkDestroyFramebuffer(renderer_data->device, data->framebuffer, VK_NULL_HANDLE);
-    for (uint32_t i = 0; i < render_target->texture_count; ++i)
+    for (uint32_t i = 0; i < render_target->texture_count && render_target->textures; ++i)
       _purrr_texture_free(render_target->textures[i]);
   }
   free(data);
   render_target->initialized = false;
+  render_target->texture_count = 0;
 }
 
 // mesh
@@ -923,26 +924,8 @@ bool _purrr_renderer_create_swapchain(_purrr_renderer_t *renderer) {
         1,
       };
 
-      {
-        _purrr_texture_t *texture = (_purrr_texture_t*)malloc(sizeof(*texture));
-        if (!texture) return false;
-        memset(texture, 0, sizeof(*texture));
-        texture->renderer = renderer;
-        texture->initialized = true;
-
-        _purrr_texture_data_t *texture_data = (_purrr_texture_data_t*)malloc(sizeof(*texture_data));
-        if (!texture_data) return false;
-        memset(texture_data, 0, sizeof(*texture_data));
-
-        texture_data->image = data->swapchain_images[i];
-        texture_data->image_view = data->swapchain_image_views[i];
-
-        texture->data_ptr = texture_data;
-
-        render_target->textures = &texture;
-        render_target->texture_count = 1;
-        create_info.pAttachments = &texture_data->image_view;
-      }
+      render_target->texture_count = 1;
+      create_info.pAttachments = &data->swapchain_image_views[i];
 
       if (vkCreateFramebuffer(data->device, &create_info, VK_NULL_HANDLE, &rt_data->framebuffer) != VK_SUCCESS) return false;
 
@@ -971,9 +954,26 @@ void _purrr_renderer_cleanup_swapchain(_purrr_renderer_t *renderer) {
   }
 }
 
-void _purrr_renderer_recreate_swapchain(_purrr_renderer_t *renderer) {
+bool _purrr_renderer_recreate_swapchain(_purrr_renderer_t *renderer) {
+  assert(renderer && renderer->initialized && renderer->data_ptr);
+
+  int width = 0, height = 0;
+  _purrr_window_t *window = (_purrr_window_t*)renderer->info->window;
+  glfwGetFramebufferSize(window->window, &width, &height);
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(window->window, &width, &height);
+    if (purrr_window_should_close(renderer->info->window)) return false;
+    glfwWaitEvents();
+  }
+
+  vkDeviceWaitIdle(((_purrr_renderer_data_t*)renderer->data_ptr)->device);
+
+  _purrr_renderer_cleanup_swapchain(renderer);
+  if (!_purrr_renderer_create_swapchain(renderer)) return false;
 
   if (renderer->callbacks.resize) renderer->callbacks.resize(renderer->user_ptr);
+
+  return true;
 }
 
 
@@ -1157,8 +1157,11 @@ bool _purrr_renderer_vulkan_begin_frame(_purrr_renderer_t *renderer) {
   assert(renderer->initialized && data);
 
   vkWaitForFences(data->device, 1, &data->flight_fences[data->frame_index], VK_TRUE, UINT64_MAX);
+  VkResult result = vkAcquireNextImageKHR(data->device, data->swapchain, UINT64_MAX-1, data->image_semaphores[data->frame_index], VK_NULL_HANDLE, &data->image_index);
+  if (result == VK_ERROR_OUT_OF_DATE_KHR) return _purrr_renderer_recreate_swapchain(renderer) && _purrr_renderer_vulkan_begin_frame(renderer);
+  else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) return false;
+
   vkResetFences(data->device, 1, &data->flight_fences[data->frame_index]);
-  vkAcquireNextImageKHR(data->device, data->swapchain, UINT64_MAX, data->image_semaphores[data->frame_index], VK_NULL_HANDLE, &data->image_index);
 
   data->active_cmd_buf = data->render_cmd_bufs[data->frame_index];
 
@@ -1304,7 +1307,9 @@ bool _purrr_renderer_vulkan_end_frame(_purrr_renderer_t *renderer) {
       .pImageIndices = &data->image_index,
     };
 
-    vkQueuePresentKHR(data->present_queue, &present_info);
+    VkResult result = vkQueuePresentKHR(data->present_queue, &present_info);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) _purrr_renderer_recreate_swapchain(renderer);
+    else if (result != VK_SUCCESS) return false;
   }
 
   if (renderer->info) {
