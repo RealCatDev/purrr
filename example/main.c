@@ -78,7 +78,9 @@ int main(void) {
     .mesh_info = (purrr_mesh_binding_info_t){
       .vertex_infos = vertex_infos,
       .vertex_info_count = 2,
-    }
+    },
+    .descriptor_slots = (purrr_descriptor_type_t[]){ PURRR_DESCRIPTOR_TYPE_TEXTURE },
+    .descriptor_slot_count = 1,
   };
 
   purrr_pipeline_t *pipeline = purrr_pipeline_create(&pipeline_info, renderer);
@@ -94,7 +96,20 @@ int main(void) {
 
   purrr_mesh_t *mesh = purrr_mesh_create(&mesh_info, renderer);
 
-  purrr_texture_info_t texture_info = {0};
+  purrr_sampler_info_t sampler_info = {
+    .mag_filter = PURRR_SAMPLER_FILTER_LINEAR,
+    .min_filter = PURRR_SAMPLER_FILTER_LINEAR,
+    .address_mode_u = PURRR_SAMPLER_ADDRESS_MODE_REPEAT,
+    .address_mode_v = PURRR_SAMPLER_ADDRESS_MODE_REPEAT,
+    .address_mode_w = PURRR_SAMPLER_ADDRESS_MODE_REPEAT,
+  };
+
+  purrr_sampler_t *sampler = purrr_sampler_create(&sampler_info, renderer);
+  if (!sampler) return 1;
+
+  purrr_texture_info_t texture_info = {
+    .sampler = sampler,
+  };
 
   purrr_texture_t *texture = NULL;
   {
@@ -102,7 +117,7 @@ int main(void) {
     stbi_uc *pixels = stbi_load("./example/chp.png", &w, &h, &c, STBI_rgb_alpha);
     texture_info.width  = (uint32_t)w;
     texture_info.height = (uint32_t)h;
-    texture_info.format = PURRR_FORMAT_RGBA8U;
+    texture_info.format = PURRR_FORMAT_RGBA8RGB;
 
     texture = purrr_texture_create(&texture_info, renderer);
     if (!texture) return 1;
@@ -119,6 +134,7 @@ int main(void) {
 
     purrr_renderer_begin_render_target(renderer, renderer_info.swapchain_render_target);
     purrr_renderer_bind_pipeline(renderer, pipeline);
+    purrr_renderer_bind_texture(renderer, texture, 0);
     purrr_renderer_draw_mesh(renderer, mesh);
     purrr_renderer_end_render_target(renderer);
 
@@ -128,6 +144,7 @@ int main(void) {
   purrr_renderer_wait(renderer);
 
   purrr_mesh_destroy(mesh);
+  purrr_sampler_destroy(sampler);
   purrr_texture_destroy(texture);
   purrr_pipeline_destroy(pipeline);
   purrr_renderer_destroy(renderer);

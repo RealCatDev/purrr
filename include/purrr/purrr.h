@@ -35,6 +35,7 @@ typedef enum {
 
   // Color formats
   PURRR_FORMAT_RGBA8U,
+  PURRR_FORMAT_RGBA8RGB,
   PURRR_FORMAT_BGRA8U,
   PURRR_FORMAT_BGRA8RGB,
   PURRR_FORMAT_RGBA16F,
@@ -49,12 +50,41 @@ typedef enum {
   COUNT_PURRR_FORMATS
 } purrr_format_t;
 
+typedef enum {
+  PURRR_SAMPLER_FILTER_NEAREST = 0,
+  PURRR_SAMPLER_FILTER_LINEAR,
+  COUNT_PURRR_SAMPLER_FILTERS
+} purrr_sampler_filter_t;
+
+typedef enum {
+  PURRR_SAMPLER_ADDRESS_MODE_REPEAT = 0,
+  PURRR_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+  PURRR_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+  PURRR_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE,
+  PURRR_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+  COUNT_PURRR_SAMPLER_ADDRESS_MODES
+} purrr_sampler_address_mode_t;
+
 typedef struct {
+  purrr_sampler_filter_t mag_filter;
+  purrr_sampler_filter_t min_filter;
+  purrr_sampler_address_mode_t address_mode_u;
+  purrr_sampler_address_mode_t address_mode_v;
+  purrr_sampler_address_mode_t address_mode_w;
+} purrr_sampler_info_t;
+
+typedef struct purrr_renderer_s purrr_renderer_t;
+
+typedef struct purrr_sampler_s purrr_sampler_t;
+
+purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer);
+void purrr_sampler_destroy(purrr_sampler_t *sampler);
+
+typedef struct {
+  purrr_sampler_t *sampler;
   uint32_t width, height;
   purrr_format_t format;
 } purrr_texture_info_t;
-
-typedef struct purrr_renderer_s purrr_renderer_t;
 
 typedef struct purrr_texture_s purrr_texture_t;
 
@@ -167,6 +197,7 @@ void purrr_renderer_set_resize_callback(purrr_renderer_t *renderer, purrr_render
 void purrr_renderer_begin_frame(purrr_renderer_t *renderer);
 void purrr_renderer_begin_render_target(purrr_renderer_t *renderer, purrr_render_target_t *render_target);
 void purrr_renderer_bind_pipeline(purrr_renderer_t *renderer, purrr_pipeline_t *pipeline);
+void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *texture, uint32_t slot_index);
 void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh);
 void purrr_renderer_end_render_target(purrr_renderer_t *renderer);
 void purrr_renderer_end_frame(purrr_renderer_t *renderer);

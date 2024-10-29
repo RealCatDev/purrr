@@ -72,10 +72,47 @@ void purrr_window_destroy(purrr_window_t *window) {
   free(internal);
 }
 
+// sampler
+
+purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer) {
+  if (!info ||
+      info->mag_filter >= COUNT_PURRR_SAMPLER_FILTERS || info->min_filter >= COUNT_PURRR_SAMPLER_FILTERS ||
+      info->address_mode_u >= COUNT_PURRR_SAMPLER_ADDRESS_MODES || info->address_mode_v >= COUNT_PURRR_SAMPLER_ADDRESS_MODES || info->address_mode_w >= COUNT_PURRR_SAMPLER_ADDRESS_MODES ||
+      !renderer) return NULL;
+
+  _purrr_sampler_t *internal = (_purrr_sampler_t*)malloc(sizeof(*internal));
+  if (!internal) return NULL;
+  memset(internal, 0, sizeof(*internal));
+  internal->info = info;
+  internal->renderer = (_purrr_renderer_t*)renderer;
+
+  switch (((_purrr_renderer_t*)renderer)->api) {
+  case PURRR_API_VULKAN: {
+    internal->init = _purrr_sampler_vulkan_init;
+    internal->cleanup = _purrr_sampler_vulkan_cleanup;
+  } break;
+  default: {
+    assert(0 && "Unreachable");
+    return NULL;
+  }
+  }
+
+  if (!internal->init(internal)) {
+    _purrr_sampler_free(internal);
+    return NULL;
+  }
+
+  return (purrr_sampler_t*)internal;
+}
+
+void purrr_sampler_destroy(purrr_sampler_t *sampler) {
+  if (sampler) _purrr_sampler_free((_purrr_sampler_t*)sampler);
+}
+
 // texture
 
 purrr_texture_t *purrr_texture_create(purrr_texture_info_t *info, purrr_renderer_t *renderer) {
-  if (!info || info->format >= COUNT_PURRR_FORMATS || info->format == PURRR_FORMAT_UNDEFINED || !renderer) return NULL;
+  if (!info || !info->sampler || info->format >= COUNT_PURRR_FORMATS || info->format == PURRR_FORMAT_UNDEFINED || !renderer) return NULL;
 
   _purrr_texture_t *internal = (_purrr_texture_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
@@ -261,6 +298,7 @@ purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
     internal->begin_frame = _purrr_renderer_vulkan_begin_frame;
     internal->begin_render_target = _purrr_renderer_vulkan_begin_render_target;
     internal->bind_pipeline = _purrr_renderer_vulkan_bind_pipeline;
+    internal->bind_texture = _purrr_renderer_vulkan_bind_texture;
     internal->draw_mesh = _purrr_renderer_vulkan_draw_mesh;
     internal->end_render_target = _purrr_renderer_vulkan_end_render_target;
     internal->end_frame = _purrr_renderer_vulkan_end_frame;
@@ -315,6 +353,12 @@ void purrr_renderer_bind_pipeline(purrr_renderer_t *renderer, purrr_pipeline_t *
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
   assert(internal && internal->bind_pipeline && pipeline);
   assert(internal->bind_pipeline(internal, (_purrr_pipeline_t*)pipeline));
+}
+
+void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *texture, uint32_t slot_index) {
+  _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
+  assert(internal && internal->bind_texture && texture);
+  assert(internal->bind_texture(internal, (_purrr_texture_t*)texture, slot_index));
 }
 
 void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh) {
