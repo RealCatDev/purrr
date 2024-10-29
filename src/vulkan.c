@@ -11,6 +11,7 @@ VkFormat vk_format(purrr_format_t format) {
   switch (format) {
   case PURRR_FORMAT_UNDEFINED: return VK_FORMAT_UNDEFINED;
   case PURRR_FORMAT_RGBA8U:    return VK_FORMAT_R8G8B8A8_UNORM;
+  case PURRR_FORMAT_RGBA8RGB:  return VK_FORMAT_R8G8B8A8_SRGB;
   case PURRR_FORMAT_BGRA8U:    return VK_FORMAT_B8G8R8A8_UNORM;
   case PURRR_FORMAT_BGRA8RGB:  return VK_FORMAT_B8G8R8A8_SRGB;
   case PURRR_FORMAT_RGBA16F:   return VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -31,6 +32,7 @@ purrr_format_t purrr_format(VkFormat format) {
   switch (format) {
   case VK_FORMAT_UNDEFINED:           return PURRR_FORMAT_UNDEFINED;
   case VK_FORMAT_R8G8B8A8_UNORM:      return PURRR_FORMAT_RGBA8U;
+  case VK_FORMAT_R8G8B8A8_SRGB:       return PURRR_FORMAT_RGBA8RGB;
   case VK_FORMAT_B8G8R8A8_UNORM:      return PURRR_FORMAT_BGRA8U;
   case VK_FORMAT_B8G8R8A8_SRGB:       return PURRR_FORMAT_BGRA8RGB;
   case VK_FORMAT_R16G16B16A16_SFLOAT: return PURRR_FORMAT_RGBA16F;
@@ -57,7 +59,38 @@ VkShaderStageFlagBits vk_shader_stage(purrr_shader_type_t type) {
   }
 }
 
+VkFilter vk_filter(purrr_sampler_filter_t filter) {
+  switch (filter) {
+  case PURRR_SAMPLER_FILTER_NEAREST: return VK_FILTER_NEAREST;
+  case PURRR_SAMPLER_FILTER_LINEAR:  return VK_FILTER_LINEAR;
+  case COUNT_PURRR_SAMPLER_FILTERS:
+  default: {
+    assert(0 && "Unreachable");
+    return 0;
+  }
+  }
+}
+
+VkSamplerAddressMode vk_sampler_address_mode(purrr_sampler_address_mode_t address_mode) {
+  switch (address_mode) {
+  case PURRR_SAMPLER_ADDRESS_MODE_REPEAT:               return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  case PURRR_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT:      return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+  case PURRR_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE:        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  case PURRR_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+  case PURRR_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER:      return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  case COUNT_PURRR_SAMPLER_ADDRESS_MODES:
+  default: {
+    assert(0 && "Unreachable");
+    return 0;
+  } break;
+  }
+}
+
 // Data structs
+
+typedef struct {
+  VkSampler sampler;
+} _purrr_sampler_data_t;
 
 typedef struct {
   VkImage image;
@@ -116,6 +149,12 @@ typedef struct {
   VkFence flight_fences[2];
 
   _purrr_render_target_t *active_render_target;
+  _purrr_pipeline_t *active_pipeline;
+
+  VkDescriptorPool descriptor_pool;
+  VkDescriptorSetLayout image_descriptor_set_layout;
+
+  VkSampler sampler;
 } _purrr_renderer_data_t;
 
 
@@ -259,6 +298,25 @@ void _purrr_renderer_vulkan_copy_buffer(_purrr_renderer_data_t *data, VkBuffer s
   _purrr_vulkan_end_single_time(data, cmd_buf);
 }
 
+void _purrr_renderer_vulkan_copy_buffer_to_image(_purrr_renderer_data_t *data, VkBuffer src, VkImage dst, uint32_t width, uint32_t height) {
+  VkCommandBuffer cmd_buf = _purrr_vulkan_begin_single_time(data);
+
+  VkBufferImageCopy region = {
+    .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .imageSubresource.mipLevel = 0,
+    .imageSubresource.baseArrayLayer = 0,
+    .imageSubresource.layerCount = 1,
+    .imageExtent = {
+      width,
+      height,
+      1
+    },
+  };
+  vkCmdCopyBufferToImage(cmd_buf, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+  _purrr_vulkan_end_single_time(data, cmd_buf);
+}
+
 uint32_t _purrr_renderer_vulkan_find_memory_type(_purrr_renderer_data_t *data, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
   VkPhysicalDeviceMemoryProperties memProperties = {0};
   vkGetPhysicalDeviceMemoryProperties(data->gpu, &memProperties);
@@ -297,6 +355,56 @@ bool _purrr_renderer_vulkan_create_buffer(_purrr_renderer_data_t *data, VkDevice
   return true;
 }
 
+// sampler
+
+bool _purrr_sampler_vulkan_init(_purrr_sampler_t *sampler) {
+  if (!sampler || !sampler->renderer || !sampler->renderer->initialized) return false;
+  _purrr_sampler_data_t *data = (_purrr_sampler_data_t*)malloc(sizeof(*data));
+  memset(data, 0, sizeof(*data));
+
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)sampler->renderer->data_ptr;
+
+  {
+    VkSamplerCreateInfo sampler_info = {
+      .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+      .magFilter = vk_filter(sampler->info->mag_filter),
+      .minFilter = vk_filter(sampler->info->min_filter),
+      .addressModeU = vk_sampler_address_mode(sampler->info->address_mode_u),
+      .addressModeV = vk_sampler_address_mode(sampler->info->address_mode_v),
+      .addressModeW = vk_sampler_address_mode(sampler->info->address_mode_w),
+      .anisotropyEnable = VK_FALSE, // TODO:
+      .maxAnisotropy = 1.0f, // TODO:
+      .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+      .unnormalizedCoordinates = VK_FALSE,
+      .compareEnable = VK_FALSE,
+      .compareOp = VK_COMPARE_OP_ALWAYS,
+      .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+      .mipLodBias = 0.0f,
+      .minLod = 0.0f,
+      .maxLod = 0.0f,
+    };
+
+    if (vkCreateSampler(renderer_data->device, &sampler_info, VK_NULL_HANDLE, &data->sampler) != VK_SUCCESS) goto error;
+  }
+
+  sampler->initialized = true;
+  sampler->data_ptr = data;
+
+  return true;
+error:
+  free(data);
+  return false;
+}
+
+void _purrr_sampler_vulkan_cleanup(_purrr_sampler_t *sampler) {
+  if (!sampler || !sampler->initialized) return;
+  assert(sampler->renderer);
+  _purrr_sampler_data_t *data = (_purrr_sampler_data_t*)sampler->data_ptr;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)sampler->renderer->data_ptr;
+  assert(data && renderer_data);
+  vkDestroySampler(renderer_data->device, data->sampler, VK_NULL_HANDLE);
+}
+
 // texture
 
 bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
@@ -305,6 +413,8 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
   memset(data, 0, sizeof(*data));
 
   _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)texture->renderer->data_ptr;
+  _purrr_sampler_data_t *sampler_data = (_purrr_sampler_data_t*)((_purrr_sampler_t*)texture->info->sampler)->data_ptr;
+  assert(renderer_data && sampler_data);
 
   {
     VkImageCreateInfo create_info = {
@@ -368,10 +478,41 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
     if (vkCreateImageView(renderer_data->device, &create_info, VK_NULL_HANDLE, &data->image_view) != VK_SUCCESS) goto error;
   }
 
-  _purrr_vulkan_transition_image_layout(renderer_data, data->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+  {
+    VkDescriptorSetAllocateInfo alloc_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = renderer_data->descriptor_pool,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &renderer_data->image_descriptor_set_layout,
+    };
+
+    if (vkAllocateDescriptorSets(renderer_data->device, &alloc_info, &data->image_set) != VK_SUCCESS) return false;
+  }
+
+  {
+    VkDescriptorImageInfo image_info = {
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      .imageView = data->image_view,
+      .sampler = sampler_data->sampler,
+    };
+
+    VkWriteDescriptorSet descriptor_write = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = data->image_set,
+      .dstBinding = 0,
+      .dstArrayElement = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .pImageInfo = &image_info,
+    };
+
+    vkUpdateDescriptorSets(renderer_data->device, (uint32_t)1, &descriptor_write, 0, VK_NULL_HANDLE);
+  }
 
   texture->initialized = true;
   texture->data_ptr = data;
+  texture->width = texture->info->width;
+  texture->height = texture->info->height;
 
   return true;
 error:
@@ -391,10 +532,30 @@ void _purrr_texture_vulkan_cleanup(_purrr_texture_t *texture) {
 }
 
 bool _purrr_texture_vulkan_load(_purrr_texture_t *dst, uint8_t *src, uint32_t src_width, uint32_t src_height) {
-  (void)dst;
-  (void)src;
-  (void)src_width;
-  (void)src_height;
+  if (!dst || !dst->initialized || !dst->renderer || !dst->renderer->initialized) return false;
+  _purrr_texture_data_t *data = (_purrr_texture_data_t*)dst->data_ptr;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)dst->renderer->data_ptr;
+  assert(data && renderer_data);
+  if (dst->width < src_width || dst->height < src_height) return false;
+
+  VkDeviceSize size = src_width*src_height*4; // TODO: Determine channel size based of the format
+
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+  if (!_purrr_renderer_vulkan_create_buffer(renderer_data, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &staging_buffer, &staging_buffer_memory)) return false;
+
+  void* buffer_data;
+  vkMapMemory(renderer_data->device, staging_buffer_memory, 0, size, 0, &buffer_data);
+    memcpy(buffer_data, src, (size_t)size);
+  vkUnmapMemory(renderer_data->device, staging_buffer_memory);
+
+  _purrr_vulkan_transition_image_layout(renderer_data, data->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+  _purrr_renderer_vulkan_copy_buffer_to_image(renderer_data, staging_buffer, data->image, src_width, src_height);
+  _purrr_vulkan_transition_image_layout(renderer_data, data->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+  vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
+  vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
+
   return true;
 }
 
@@ -615,11 +776,30 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
     .pAttachments = &color_blend_attachment,
   };
 
+  VkDescriptorSetLayout *layouts = (VkDescriptorSetLayout*)malloc(sizeof(*layouts)*pipeline->info->descriptor_slot_count);
+  for (uint32_t i = 0; i < pipeline->info->descriptor_slot_count; ++i) {
+    VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+    switch (pipeline->info->descriptor_slots[i]) {
+    case PURRR_DESCRIPTOR_TYPE_TEXTURE: {
+      layout = renderer_data->image_descriptor_set_layout;
+    } break;
+    case COUNT_PURRR_DESCRIPTOR_TYPES: {
+      assert(0 && "Unreachable");
+      return false;
+    }
+    }
+    layouts[i] = layout;
+  }
+
   VkPipelineLayoutCreateInfo pipeline_layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .pSetLayouts = layouts,
+    .setLayoutCount = pipeline->info->descriptor_slot_count,
   };
 
   if (vkCreatePipelineLayout(renderer_data->device, &pipeline_layout_info, VK_NULL_HANDLE, &data->pipeline_layout) != VK_SUCCESS) return false;
+
+  free(layouts);
 
   VkGraphicsPipelineCreateInfo pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -1123,6 +1303,41 @@ bool _purrr_renderer_vulkan_init(_purrr_renderer_t *renderer) {
     }
   }
 
+  {
+    VkDescriptorPoolSize pool_sizes[] = {
+      (VkDescriptorPoolSize){
+        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 2048, // TODO: Customize?
+      },
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      .poolSizeCount = sizeof(pool_sizes)/sizeof(pool_sizes[0]),
+      .pPoolSizes = pool_sizes,
+      .maxSets = 2048,
+    };
+
+    if (vkCreateDescriptorPool(data->device, &pool_info, VK_NULL_HANDLE, &data->descriptor_pool) != VK_SUCCESS) return false;
+  }
+
+  {
+    VkDescriptorSetLayoutBinding binding = {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    };
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 1,
+      .pBindings = &binding,
+    };
+
+    if (vkCreateDescriptorSetLayout(data->device, &layout_info, VK_NULL_HANDLE, &data->image_descriptor_set_layout) != VK_SUCCESS) return false;
+  }
+
   renderer->initialized = true;
 
   return true;
@@ -1141,6 +1356,9 @@ void _purrr_renderer_vulkan_cleanup(_purrr_renderer_t *renderer) {
       vkDestroySemaphore(data->device, data->image_semaphores[i], VK_NULL_HANDLE);
       vkDestroyFence(data->device, data->flight_fences[i], VK_NULL_HANDLE);
     }
+
+    vkDestroyDescriptorSetLayout(data->device, data->image_descriptor_set_layout, VK_NULL_HANDLE);
+    vkDestroyDescriptorPool(data->device, data->descriptor_pool, VK_NULL_HANDLE);
 
     vkDestroyCommandPool(data->device, data->command_pool, VK_NULL_HANDLE);
 
@@ -1241,6 +1459,22 @@ bool _purrr_renderer_vulkan_bind_pipeline(_purrr_renderer_t *renderer, _purrr_pi
 
   vkCmdBindPipeline(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline);
 
+  data->active_pipeline = pipeline;
+
+  return true;
+}
+
+bool _purrr_renderer_vulkan_bind_texture(_purrr_renderer_t *renderer, _purrr_texture_t *texture, uint32_t slot_index) {
+  if (!renderer || !renderer->initialized || !texture || !texture->initialized) return false;
+  _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
+  _purrr_texture_data_t *texture_data = (_purrr_texture_data_t*)texture->data_ptr;
+  assert(data && texture_data);
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_render_target->initialized || !data->active_pipeline || !data->active_pipeline->initialized || slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
+  _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
+  assert(pipeline_data);
+
+  vkCmdBindDescriptorSets(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline_layout, slot_index, 1, &texture_data->image_set, 0, NULL);
+
   return true;
 }
 
@@ -1277,6 +1511,8 @@ bool _purrr_renderer_vulkan_end_frame(_purrr_renderer_t *renderer) {
   _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
   assert(data);
   if (!data->active_cmd_buf) return false;
+
+  assert(!data->active_render_target);
 
   if (vkEndCommandBuffer(data->active_cmd_buf) != VK_SUCCESS) return false;
 
@@ -1317,6 +1553,7 @@ bool _purrr_renderer_vulkan_end_frame(_purrr_renderer_t *renderer) {
   }
 
   data->active_cmd_buf = NULL;
+  data->active_pipeline = NULL;
   data->frame_index = (data->frame_index+1)%2;
 
   return true;

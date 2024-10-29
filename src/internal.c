@@ -1,5 +1,11 @@
 #include "internal.h"
 
+void _purrr_sampler_free(_purrr_sampler_t *sampler) {
+  if (!sampler || !sampler->initialized) return;
+  if (sampler->cleanup) sampler->cleanup(sampler);
+  free(sampler);
+}
+
 void _purrr_texture_free(_purrr_texture_t *texture) {
   if (!texture || !texture->initialized) return;
   if (texture->cleanup) texture->cleanup(texture);
