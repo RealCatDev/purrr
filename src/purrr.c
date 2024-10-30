@@ -159,6 +159,40 @@ bool purrr_texture_copy(purrr_texture_t *dst, purrr_texture_t *src, uint32_t src
 
 // pipeline descriptor
 
+purrr_pipeline_descriptor_t *purrr_pipeline_descriptor_create(purrr_pipeline_descriptor_info_t *info, purrr_renderer_t *renderer) {
+  if (!info || info->color_attachment_count == 0 || !info->color_attachments || !renderer) return NULL;
+
+  _purrr_pipeline_descriptor_t *internal = (_purrr_pipeline_descriptor_t*)malloc(sizeof(*internal));
+  if (!internal) return NULL;
+  memset(internal, 0, sizeof(*internal));
+  internal->info = info;
+  internal->renderer = (_purrr_renderer_t*)renderer;
+
+  switch (((_purrr_renderer_t*)renderer)->api) {
+  case PURRR_API_VULKAN: {
+    internal->init = _purrr_pipeline_descriptor_vulkan_init;
+    internal->cleanup = _purrr_pipeline_descriptor_vulkan_cleanup;
+  } break;
+  default: {
+    assert(0 && "Unreachable");
+    return NULL;
+  }
+  }
+
+  if (!internal->init(internal)) {
+    _purrr_pipeline_descriptor_free(internal);
+    return NULL;
+  }
+
+  internal->initialized = true;
+
+  return (purrr_pipeline_descriptor_t*)internal;
+}
+
+void purrr_pipeline_descriptor_destroy(purrr_pipeline_descriptor_t *pipeline_descriptor) {
+  if (pipeline_descriptor) _purrr_pipeline_descriptor_free((_purrr_pipeline_descriptor_t*)pipeline_descriptor);
+}
+
 // pipeline
 
 purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_renderer_t *renderer) {
@@ -201,19 +235,25 @@ void purrr_pipeline_destroy(purrr_pipeline_t *pipeline) {
 
 // render target
 
-purrr_render_target_t *purrr_render_target_create(purrr_pipeline_descriptor_t *descriptor, purrr_renderer_t *renderer) {
-  if (!descriptor || !renderer) return NULL;
+purrr_render_target_t *purrr_render_target_create(purrr_render_target_info_t *info, purrr_renderer_t *renderer) {
+  if (!info || !info->pipeline_descriptor ||
+      !info->width || !info->height ||
+      !info->pipeline_descriptor || !((_purrr_pipeline_descriptor_t*)info->pipeline_descriptor)->initialized ||
+      !renderer) return NULL;
 
   _purrr_render_target_t *internal = (_purrr_render_target_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->descriptor = (_purrr_pipeline_descriptor_t*)descriptor;
+  internal->descriptor = (_purrr_pipeline_descriptor_t*)info->pipeline_descriptor;
+  internal->width = info->width;
+  internal->height = info->height;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (((_purrr_renderer_t*)renderer)->api) {
   case PURRR_API_VULKAN: {
     internal->init = _purrr_render_target_vulkan_init;
     internal->cleanup = _purrr_render_target_vulkan_cleanup;
+    internal->get_texture = _purrr_render_target_vulkan_get_texture;
   } break;
   default: {
     assert(0 && "Unreachable");
@@ -221,7 +261,7 @@ purrr_render_target_t *purrr_render_target_create(purrr_pipeline_descriptor_t *d
   }
   }
 
-  if (!internal->descriptor->initialized) {
+  if (!internal->init(internal)) {
     _purrr_render_target_free(internal);
     return NULL;
   }
@@ -232,9 +272,10 @@ purrr_render_target_t *purrr_render_target_create(purrr_pipeline_descriptor_t *d
 }
 
 purrr_texture_t *purrr_render_target_get_texture(purrr_render_target_t *render_target, uint32_t texture_index) {
-  (void)render_target;
-  (void)texture_index;
-  return NULL;
+  _purrr_render_target_t *internal = (_purrr_render_target_t*)render_target;
+  assert(internal && internal->get_texture);
+  _purrr_texture_t *texture = internal->get_texture(internal, texture_index);
+  return (purrr_texture_t*)texture;
 }
 
 void purrr_render_target_destroy(purrr_render_target_t *render_target) {

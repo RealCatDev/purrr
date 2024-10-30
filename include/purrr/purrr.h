@@ -97,6 +97,7 @@ typedef struct {
   purrr_format_t format;
   bool load;
   bool store;
+  purrr_sampler_t *sampler;
 } purrr_pipeline_descriptor_attachment_info_t;
 
 typedef struct {
@@ -107,9 +108,17 @@ typedef struct {
 
 typedef struct purrr_pipeline_descriptor_s purrr_pipeline_descriptor_t;
 
+purrr_pipeline_descriptor_t *purrr_pipeline_descriptor_create(purrr_pipeline_descriptor_info_t *info, purrr_renderer_t *renderer);
+void purrr_pipeline_descriptor_destroy(purrr_pipeline_descriptor_t *pipeline_descriptor);
+
+typedef struct {
+  purrr_pipeline_descriptor_t *pipeline_descriptor;
+  uint32_t width, height;
+} purrr_render_target_info_t;
+
 typedef struct purrr_render_target_s purrr_render_target_t;
 
-purrr_render_target_t *purrr_render_target_create(purrr_pipeline_descriptor_t *descriptor, purrr_renderer_t *renderer);
+purrr_render_target_t *purrr_render_target_create(purrr_render_target_info_t *info, purrr_renderer_t *renderer);
 purrr_texture_t *purrr_render_target_get_texture(purrr_render_target_t *render_target, uint32_t texture_index);
 void purrr_render_target_destroy(purrr_render_target_t *render_target);
 

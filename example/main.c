@@ -15,10 +15,10 @@ typedef struct {
 } vertex_t;
 
 static vertex_t gVertices[] = {
-  { { -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f }, },
-  { {  0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f }, },
-  { {  0.5f,  0.5f, 0.0f }, { 0.0f, 1.0f }, },
-  { { -0.5f,  0.5f, 0.0f }, { 1.0f, 1.0f }, },
+  { { -1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f }, },
+  { {  1.0f, -1.0f, 0.0f }, { 1.0f, 0.0f }, },
+  { {  1.0f,  1.0f, 0.0f }, { 1.0f, 1.0f }, },
+  { { -1.0f,  1.0f, 0.0f }, { 0.0f, 1.0f }, },
 };
 
 void resize(void *data) {
@@ -37,7 +37,7 @@ int main(void) {
   };
 
   purrr_window_t *window = purrr_window_create(&window_info);
-  if (!window) return 1;
+  assert(window);
 
   purrr_renderer_info_t renderer_info = {
     .window = window,
@@ -45,7 +45,7 @@ int main(void) {
   };
 
   purrr_renderer_t *renderer = purrr_renderer_create(&renderer_info);
-  if (!renderer) return 1;
+  assert(renderer);
 
   purrr_pipeline_shader_info_t shaders[] = {
     (purrr_pipeline_shader_info_t){
@@ -84,7 +84,7 @@ int main(void) {
   };
 
   purrr_pipeline_t *pipeline = purrr_pipeline_create(&pipeline_info, renderer);
-  if (!pipeline) return 1;
+  assert(pipeline);
 
   purrr_mesh_info_t mesh_info = {
     .index_count = 6,
@@ -105,7 +105,7 @@ int main(void) {
   };
 
   purrr_sampler_t *sampler = purrr_sampler_create(&sampler_info, renderer);
-  if (!sampler) return 1;
+  assert(sampler);
 
   purrr_texture_info_t texture_info = {
     .sampler = sampler,
@@ -120,11 +120,52 @@ int main(void) {
     texture_info.format = PURRR_FORMAT_RGBA8RGB;
 
     texture = purrr_texture_create(&texture_info, renderer);
-    if (!texture) return 1;
+    assert(texture);
 
-    if (!purrr_texture_load(texture, pixels, (uint32_t)w, (uint32_t)h)) return 1;
+    assert(purrr_texture_load(texture, pixels, (uint32_t)w, (uint32_t)h));
     stbi_image_free(pixels);
   }
+
+  purrr_pipeline_descriptor_attachment_info_t color_attachments[] = {
+    (purrr_pipeline_descriptor_attachment_info_t){
+      .format = PURRR_FORMAT_RGBA8RGB,
+      .load = false,
+      .store = true,
+      .sampler = sampler,
+    },
+  };
+
+  purrr_pipeline_descriptor_info_t offscreen_pipeline_descriptor_info = {
+    .color_attachments = color_attachments,
+    .color_attachment_count = 1,
+  };
+
+  purrr_pipeline_descriptor_t *offscreen_pipeline_descriptor = purrr_pipeline_descriptor_create(&offscreen_pipeline_descriptor_info, renderer);
+  assert(offscreen_pipeline_descriptor);
+
+  purrr_render_target_info_t offscreen_render_target_info = {
+    .pipeline_descriptor = offscreen_pipeline_descriptor,
+    .width = 1920,
+    .height = 1080,
+  };
+
+  purrr_render_target_t *offscreen_render_target = purrr_render_target_create(&offscreen_render_target_info, renderer);
+  assert(offscreen_render_target);
+
+  purrr_pipeline_info_t offscreen_pipeline_info = {
+    .shader_infos = shaders,
+    .shader_info_count = 2,
+    .pipeline_descriptor = offscreen_pipeline_descriptor,
+    .mesh_info = (purrr_mesh_binding_info_t){
+      .vertex_infos = vertex_infos,
+      .vertex_info_count = 2,
+    },
+    .descriptor_slots = (purrr_descriptor_type_t[]){ PURRR_DESCRIPTOR_TYPE_TEXTURE },
+    .descriptor_slot_count = 1,
+  };
+
+  purrr_pipeline_t *offscreen_pipeline = purrr_pipeline_create(&offscreen_pipeline_info, renderer);
+  assert(offscreen_pipeline);
 
   purrr_renderer_set_user_data(renderer, NULL);
   purrr_renderer_set_resize_callback(renderer, resize);
@@ -132,9 +173,17 @@ int main(void) {
   while (!purrr_window_should_close(window)) {
     purrr_renderer_begin_frame(renderer);
 
+    purrr_renderer_begin_render_target(renderer, offscreen_render_target);
+    purrr_renderer_bind_pipeline(renderer, offscreen_pipeline);
+    purrr_renderer_bind_texture(renderer, texture, 0);
+    purrr_renderer_draw_mesh(renderer, mesh);
+    purrr_renderer_end_render_target(renderer);
+
     purrr_renderer_begin_render_target(renderer, renderer_info.swapchain_render_target);
     purrr_renderer_bind_pipeline(renderer, pipeline);
-    purrr_renderer_bind_texture(renderer, texture, 0);
+    purrr_texture_t *offscreen_texture = purrr_render_target_get_texture(offscreen_render_target, 0);
+    assert(offscreen_texture);
+    purrr_renderer_bind_texture(renderer, offscreen_texture, 0);
     purrr_renderer_draw_mesh(renderer, mesh);
     purrr_renderer_end_render_target(renderer);
 
@@ -143,6 +192,9 @@ int main(void) {
   }
   purrr_renderer_wait(renderer);
 
+  purrr_pipeline_destroy(offscreen_pipeline);
+  purrr_pipeline_descriptor_destroy(offscreen_pipeline_descriptor);
+  purrr_render_target_destroy(offscreen_render_target);
   purrr_mesh_destroy(mesh);
   purrr_sampler_destroy(sampler);
   purrr_texture_destroy(texture);

@@ -430,7 +430,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
       1,
       VK_SAMPLE_COUNT_1_BIT, // TODO: Implement
       VK_IMAGE_TILING_OPTIMAL, // TODO: Add an option for tiling
-      (VkImageUsageFlags)(VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
+      (VkImageUsageFlags)(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT /* TODO: Check format to determine if it's color or depth texture */ | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
       VK_SHARING_MODE_EXCLUSIVE,
       0, NULL,
       VK_IMAGE_LAYOUT_UNDEFINED,
@@ -613,6 +613,8 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
 
     if (vkCreateRenderPass(renderer_data->device, &create_info, VK_NULL_HANDLE, &data->render_pass) != VK_SUCCESS) goto error;
   }
+
+  pipeline_descriptor->data_ptr = data;
 
   return true;
 error:
@@ -844,8 +846,55 @@ void _purrr_pipeline_vulkan_cleanup(_purrr_pipeline_t *pipeline) {
 
 bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target) {
   if (!render_target || !render_target->renderer || !render_target->renderer->initialized) return false;
-  // TODO: Implement
-  return false;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)render_target->renderer->data_ptr;
+  _purrr_render_target_data_t *data = (_purrr_render_target_data_t*)malloc(sizeof(*data));
+  assert(data && renderer_data);
+  memset(data, 0, sizeof(*data));
+
+  _purrr_pipeline_descriptor_t *pipeline_descriptor = (_purrr_pipeline_descriptor_t*)render_target->descriptor;
+  if (!pipeline_descriptor || !pipeline_descriptor->initialized || pipeline_descriptor->info->color_attachment_count == 0 || !pipeline_descriptor->info->color_attachments) return false;
+  _purrr_pipeline_descriptor_data_t *pipeline_descriptor_data = (_purrr_pipeline_descriptor_data_t*)pipeline_descriptor->data_ptr;
+  assert(pipeline_descriptor_data);
+
+  render_target->texture_count = pipeline_descriptor->info->color_attachment_count;
+  render_target->textures = (_purrr_texture_t**)malloc(sizeof(render_target->textures)*render_target->texture_count);
+
+  VkImageView *views = (VkImageView*)malloc(sizeof(*views)*render_target->texture_count);
+  if (!views) return false;
+
+  for (uint32_t i = 0; i < pipeline_descriptor->info->color_attachment_count; ++i) {
+    purrr_pipeline_descriptor_attachment_info_t attachment_info = pipeline_descriptor->info->color_attachments[i];
+    if (!attachment_info.sampler || !((_purrr_sampler_t*)attachment_info.sampler)->initialized) return false;
+    purrr_texture_info_t info = {
+      .width = render_target->width,
+      .height = render_target->height,
+      .format = attachment_info.format,
+      .sampler = attachment_info.sampler,
+    };
+
+    _purrr_texture_t *texture = (_purrr_texture_t*)purrr_texture_create(&info, (purrr_renderer_t*)render_target->renderer);
+    if (!texture) return false;
+    render_target->textures[i] = texture;
+    views[i] = ((_purrr_texture_data_t*)texture->data_ptr)->image_view;
+  }
+
+  {
+    VkFramebufferCreateInfo framebuffer_info = {
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass = pipeline_descriptor_data->render_pass,
+      .attachmentCount = render_target->texture_count,
+      .pAttachments = views,
+      .width = render_target->width,
+      .height = render_target->height,
+      .layers = 1,
+    };
+
+    if (vkCreateFramebuffer(renderer_data->device, &framebuffer_info, VK_NULL_HANDLE, &data->framebuffer) != VK_SUCCESS) return false;
+  }
+
+  render_target->data_ptr = data;
+
+  return true;
 }
 
 void _purrr_render_target_vulkan_cleanup(_purrr_render_target_t *render_target) {
@@ -860,6 +909,13 @@ void _purrr_render_target_vulkan_cleanup(_purrr_render_target_t *render_target) 
   free(data);
   render_target->initialized = false;
   render_target->texture_count = 0;
+}
+
+_purrr_texture_t *_purrr_render_target_vulkan_get_texture(_purrr_render_target_t *render_target, uint32_t texture_index) {
+  if (!render_target || !render_target->initialized ||
+      !render_target->textures || texture_index >= render_target->texture_count)
+    return NULL;
+  return render_target->textures[texture_index];
 }
 
 // mesh

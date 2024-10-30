@@ -37,6 +37,7 @@ typedef void (*_purrr_pipeline_cleanup_t)(_purrr_pipeline_t *);
 typedef struct _purrr_render_target_s _purrr_render_target_t;
 typedef bool (*_purrr_render_target_init_t)(_purrr_render_target_t *);
 typedef void (*_purrr_render_target_cleanup_t)(_purrr_render_target_t *);
+typedef _purrr_texture_t *(*_purrr_render_target_get_texture_t)(_purrr_render_target_t *, uint32_t);
 
 typedef struct _purrr_mesh_s _purrr_mesh_t;
 typedef bool (*_purrr_mesh_init_t)(_purrr_mesh_t *);
@@ -137,15 +138,16 @@ void _purrr_pipeline_vulkan_cleanup(_purrr_pipeline_t *pipeline);
 struct _purrr_render_target_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  _purrr_pipeline_descriptor_t *descriptor;
 
   _purrr_texture_t **textures;
   uint32_t texture_count;
 
   uint32_t width, height;
+  _purrr_pipeline_descriptor_t *descriptor;
 
   _purrr_render_target_init_t init;
   _purrr_render_target_cleanup_t cleanup;
+  _purrr_render_target_get_texture_t get_texture;
 
   void *data_ptr;
 };
@@ -154,6 +156,7 @@ void _purrr_render_target_free(_purrr_render_target_t *render_target);
 
 bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target);
 void _purrr_render_target_vulkan_cleanup(_purrr_render_target_t *render_target);
+_purrr_texture_t *_purrr_render_target_vulkan_get_texture(_purrr_render_target_t *render_target, uint32_t texture_index);
 
 // mesh
 
