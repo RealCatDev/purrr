@@ -16,19 +16,7 @@ typedef void *handle_t;
 #define PURRR_WINDOW_SIZE_DONT_MIND -1
 #define PURRR_WINDOW_SIZE_MAX INT32_MAX
 
-typedef struct {
-  uint32_t x, y;
-  int32_t width, height;
-  const char *title;
-  bool fullscreen;
-  purrr_api_t api;
-} purrr_window_info_t;
-
-typedef struct purrr_window_s purrr_window_t;
-
-purrr_window_t *purrr_window_create(purrr_window_info_t *info);
-bool purrr_window_should_close(purrr_window_t *window);
-void purrr_window_destroy(purrr_window_t *window);
+// Enums
 
 typedef enum {
   PURRR_FORMAT_UNDEFINED = 0,
@@ -65,6 +53,28 @@ typedef enum {
   COUNT_PURRR_SAMPLER_ADDRESS_MODES
 } purrr_sampler_address_mode_t;
 
+typedef enum {
+  PURRR_DESCRIPTOR_TYPE_TEXTURE = 0,
+  COUNT_PURRR_DESCRIPTOR_TYPES
+} purrr_descriptor_type_t;
+
+typedef enum {
+  PURRR_SHADER_TYPE_VERTEX = 0,
+  PURRR_SHADER_TYPE_FRAGMENT,
+  PURRR_SHADER_TYPE_COMPUTE,
+  COUNT_PURRR_SHADER_TYPES
+} purrr_shader_type_t;
+
+// Infos
+
+typedef struct {
+  uint32_t x, y;
+  int32_t width, height;
+  const char *title;
+  bool fullscreen;
+  purrr_api_t api;
+} purrr_window_info_t;
+
 typedef struct {
   purrr_sampler_filter_t mag_filter;
   purrr_sampler_filter_t min_filter;
@@ -73,25 +83,11 @@ typedef struct {
   purrr_sampler_address_mode_t address_mode_w;
 } purrr_sampler_info_t;
 
-typedef struct purrr_renderer_s purrr_renderer_t;
-
-typedef struct purrr_sampler_s purrr_sampler_t;
-
-purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer);
-void purrr_sampler_destroy(purrr_sampler_t *sampler);
-
 typedef struct {
   purrr_sampler_t *sampler;
   uint32_t width, height;
   purrr_format_t format;
 } purrr_texture_info_t;
-
-typedef struct purrr_texture_s purrr_texture_t;
-
-purrr_texture_t *purrr_texture_create(purrr_texture_info_t *info, purrr_renderer_t *renderer);
-void purrr_texture_destroy(purrr_texture_t *texture);
-bool purrr_texture_load(purrr_texture_t *dst, uint8_t *src, uint32_t src_width, uint32_t src_height);
-bool purrr_texture_copy(purrr_texture_t *dst, purrr_texture_t *src, uint32_t src_width, uint32_t src_height);
 
 typedef struct {
   purrr_format_t format;
@@ -106,33 +102,10 @@ typedef struct {
   purrr_pipeline_descriptor_attachment_info_t *depth_attachment;
 } purrr_pipeline_descriptor_info_t;
 
-typedef struct purrr_pipeline_descriptor_s purrr_pipeline_descriptor_t;
-
-purrr_pipeline_descriptor_t *purrr_pipeline_descriptor_create(purrr_pipeline_descriptor_info_t *info, purrr_renderer_t *renderer);
-void purrr_pipeline_descriptor_destroy(purrr_pipeline_descriptor_t *pipeline_descriptor);
-
 typedef struct {
   purrr_pipeline_descriptor_t *pipeline_descriptor;
   uint32_t width, height;
 } purrr_render_target_info_t;
-
-typedef struct purrr_render_target_s purrr_render_target_t;
-
-purrr_render_target_t *purrr_render_target_create(purrr_render_target_info_t *info, purrr_renderer_t *renderer);
-purrr_texture_t *purrr_render_target_get_texture(purrr_render_target_t *render_target, uint32_t texture_index);
-void purrr_render_target_destroy(purrr_render_target_t *render_target);
-
-typedef enum {
-  PURRR_DESCRIPTOR_TYPE_TEXTURE = 0,
-  COUNT_PURRR_DESCRIPTOR_TYPES
-} purrr_descriptor_type_t;
-
-typedef enum {
-  PURRR_SHADER_TYPE_VERTEX = 0,
-  PURRR_SHADER_TYPE_FRAGMENT,
-  PURRR_SHADER_TYPE_COMPUTE,
-  COUNT_PURRR_SHADER_TYPES
-} purrr_shader_type_t;
 
 typedef struct {
   const char *file_path;
@@ -162,11 +135,6 @@ typedef struct {
   uint32_t descriptor_slot_count;
 } purrr_pipeline_info_t;
 
-typedef struct purrr_pipeline_s purrr_pipeline_t;
-
-purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_renderer_t *renderer);
-void purrr_pipeline_destroy(purrr_pipeline_t *pipeline);
-
 typedef struct {
   void     *vertices;
   uint32_t  vertices_size;
@@ -174,11 +142,6 @@ typedef struct {
   uint32_t  indices_size;
   uint32_t  index_count;
 } purrr_mesh_info_t;
-
-typedef struct purrr_mesh_s purrr_mesh_t;
-
-purrr_mesh_t *purrr_mesh_create(purrr_mesh_info_t *info, purrr_renderer_t *renderer);
-void purrr_mesh_destroy(purrr_mesh_t *mesh);
 
 typedef struct {
   purrr_window_t *window;
@@ -192,6 +155,49 @@ typedef struct {
   // Modified by renderer (DO NOT FREE OR CHANGE!)
   purrr_render_target_t *swapchain_render_target;
 } purrr_renderer_info_t;
+
+// Structures
+
+typedef struct purrr_window_s purrr_window_t;
+
+purrr_window_t *purrr_window_create(purrr_window_info_t *info);
+bool purrr_window_should_close(purrr_window_t *window);
+void purrr_window_destroy(purrr_window_t *window);
+
+typedef struct purrr_renderer_s purrr_renderer_t;
+
+typedef struct purrr_sampler_s purrr_sampler_t;
+
+purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer);
+void purrr_sampler_destroy(purrr_sampler_t *sampler);
+
+typedef struct purrr_texture_s purrr_texture_t;
+
+purrr_texture_t *purrr_texture_create(purrr_texture_info_t *info, purrr_renderer_t *renderer);
+void purrr_texture_destroy(purrr_texture_t *texture);
+bool purrr_texture_load(purrr_texture_t *dst, uint8_t *src, uint32_t src_width, uint32_t src_height);
+bool purrr_texture_copy(purrr_texture_t *dst, purrr_texture_t *src, uint32_t src_width, uint32_t src_height);
+
+typedef struct purrr_pipeline_descriptor_s purrr_pipeline_descriptor_t;
+
+purrr_pipeline_descriptor_t *purrr_pipeline_descriptor_create(purrr_pipeline_descriptor_info_t *info, purrr_renderer_t *renderer);
+void purrr_pipeline_descriptor_destroy(purrr_pipeline_descriptor_t *pipeline_descriptor);
+
+typedef struct purrr_render_target_s purrr_render_target_t;
+
+purrr_render_target_t *purrr_render_target_create(purrr_render_target_info_t *info, purrr_renderer_t *renderer);
+purrr_texture_t *purrr_render_target_get_texture(purrr_render_target_t *render_target, uint32_t texture_index);
+void purrr_render_target_destroy(purrr_render_target_t *render_target);
+
+typedef struct purrr_pipeline_s purrr_pipeline_t;
+
+purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_renderer_t *renderer);
+void purrr_pipeline_destroy(purrr_pipeline_t *pipeline);
+
+typedef struct purrr_mesh_s purrr_mesh_t;
+
+purrr_mesh_t *purrr_mesh_create(purrr_mesh_info_t *info, purrr_renderer_t *renderer);
+void purrr_mesh_destroy(purrr_mesh_t *mesh);
 
 // Callbacks
 typedef void (*purrr_renderer_resize_cb)(void *user_pointer);
