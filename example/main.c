@@ -135,9 +135,17 @@ int main(void) {
     },
   };
 
+  purrr_pipeline_descriptor_attachment_info_t depth_attachment = {
+    .format = PURRR_FORMAT_DEPTH,
+    .load = false,
+    .store = false,
+    .sampler = sampler
+  };
+
   purrr_pipeline_descriptor_info_t offscreen_pipeline_descriptor_info = {
     .color_attachments = color_attachments,
     .color_attachment_count = 1,
+    .depth_attachment = &depth_attachment,
   };
 
   purrr_pipeline_descriptor_t *offscreen_pipeline_descriptor = purrr_pipeline_descriptor_create(&offscreen_pipeline_descriptor_info, renderer);

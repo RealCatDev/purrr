@@ -45,7 +45,7 @@ typedef enum {
   PURRR_FORMAT_RGBA64F,
 
   // Depth formats
-  PURRR_FORMAT_D24U8U,
+  PURRR_FORMAT_DEPTH,
 
   COUNT_PURRR_FORMATS
 } purrr_format_t;

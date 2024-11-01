@@ -7,45 +7,6 @@
 #define max(a, b) (a>b?a:b)
 #define clamp(x, upper, lower) (min(upper, max(x, lower)))
 
-VkFormat vk_format(purrr_format_t format) {
-  switch (format) {
-  case PURRR_FORMAT_UNDEFINED: return VK_FORMAT_UNDEFINED;
-  case PURRR_FORMAT_RGBA8U:    return VK_FORMAT_R8G8B8A8_UNORM;
-  case PURRR_FORMAT_RGBA8RGB:  return VK_FORMAT_R8G8B8A8_SRGB;
-  case PURRR_FORMAT_BGRA8U:    return VK_FORMAT_B8G8R8A8_UNORM;
-  case PURRR_FORMAT_BGRA8RGB:  return VK_FORMAT_B8G8R8A8_SRGB;
-  case PURRR_FORMAT_RGBA16F:   return VK_FORMAT_R16G16B16A16_SFLOAT;
-  case PURRR_FORMAT_RG32F:     return VK_FORMAT_R32G32_SFLOAT;
-  case PURRR_FORMAT_RGB32F:    return VK_FORMAT_R32G32B32_SFLOAT;
-  case PURRR_FORMAT_RGBA32F:   return VK_FORMAT_R32G32B32A32_SFLOAT;
-  case PURRR_FORMAT_RGBA64F:   return VK_FORMAT_R64G64B64A64_SFLOAT;
-  case PURRR_FORMAT_D24U8U:    return VK_FORMAT_D24_UNORM_S8_UINT;
-  case COUNT_PURRR_FORMATS:
-  default: {
-    assert(0 && "Unreachable");
-    return VK_FORMAT_UNDEFINED;
-  }
-  }
-}
-
-purrr_format_t purrr_format(VkFormat format) {
-  switch (format) {
-  case VK_FORMAT_UNDEFINED:           return PURRR_FORMAT_UNDEFINED;
-  case VK_FORMAT_R8G8B8A8_UNORM:      return PURRR_FORMAT_RGBA8U;
-  case VK_FORMAT_R8G8B8A8_SRGB:       return PURRR_FORMAT_RGBA8RGB;
-  case VK_FORMAT_B8G8R8A8_UNORM:      return PURRR_FORMAT_BGRA8U;
-  case VK_FORMAT_B8G8R8A8_SRGB:       return PURRR_FORMAT_BGRA8RGB;
-  case VK_FORMAT_R16G16B16A16_SFLOAT: return PURRR_FORMAT_RGBA16F;
-  case VK_FORMAT_R32G32B32A32_SFLOAT: return PURRR_FORMAT_RGBA32F;
-  case VK_FORMAT_R64G64B64A64_SFLOAT: return PURRR_FORMAT_RGBA64F;
-  case VK_FORMAT_D24_UNORM_S8_UINT:   return PURRR_FORMAT_D24U8U;
-  default: {
-    assert(0 && "Unreachable");
-    return PURRR_FORMAT_UNDEFINED;
-  }
-  }
-}
-
 VkShaderStageFlagBits vk_shader_stage(purrr_shader_type_t type) {
   switch (type) {
   case PURRR_SHADER_TYPE_VERTEX:   return VK_SHADER_STAGE_VERTEX_BIT;
@@ -159,6 +120,65 @@ typedef struct {
 
 
 
+VkFormat vk_format(_purrr_renderer_data_t *data, purrr_format_t format) {
+  switch (format) {
+  case PURRR_FORMAT_UNDEFINED: return VK_FORMAT_UNDEFINED;
+  case PURRR_FORMAT_RGBA8U:    return VK_FORMAT_R8G8B8A8_UNORM;
+  case PURRR_FORMAT_RGBA8RGB:  return VK_FORMAT_R8G8B8A8_SRGB;
+  case PURRR_FORMAT_BGRA8U:    return VK_FORMAT_B8G8R8A8_UNORM;
+  case PURRR_FORMAT_BGRA8RGB:  return VK_FORMAT_B8G8R8A8_SRGB;
+  case PURRR_FORMAT_RGBA16F:   return VK_FORMAT_R16G16B16A16_SFLOAT;
+  case PURRR_FORMAT_RG32F:     return VK_FORMAT_R32G32_SFLOAT;
+  case PURRR_FORMAT_RGB32F:    return VK_FORMAT_R32G32B32_SFLOAT;
+  case PURRR_FORMAT_RGBA32F:   return VK_FORMAT_R32G32B32A32_SFLOAT;
+  case PURRR_FORMAT_RGBA64F:   return VK_FORMAT_R64G64B64A64_SFLOAT;
+
+  case PURRR_FORMAT_DEPTH: {
+    VkFormat candidates[] = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+    for (uint32_t i = 0; i < sizeof(candidates)/sizeof(candidates[0]); ++i) {
+      VkFormat format = candidates[i];
+      VkFormatProperties props = {0};
+      vkGetPhysicalDeviceFormatProperties(data->gpu, format, &props);
+
+      if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) return format;
+    }
+
+    return VK_FORMAT_UNDEFINED;
+  } break;
+
+  case COUNT_PURRR_FORMATS:
+  default: {
+    assert(0 && "Unreachable");
+    return VK_FORMAT_UNDEFINED;
+  }
+  }
+}
+
+purrr_format_t purrr_format(VkFormat format) {
+  switch (format) {
+  case VK_FORMAT_UNDEFINED:           return PURRR_FORMAT_UNDEFINED;
+  case VK_FORMAT_R8G8B8A8_UNORM:      return PURRR_FORMAT_RGBA8U;
+  case VK_FORMAT_R8G8B8A8_SRGB:       return PURRR_FORMAT_RGBA8RGB;
+  case VK_FORMAT_B8G8R8A8_UNORM:      return PURRR_FORMAT_BGRA8U;
+  case VK_FORMAT_B8G8R8A8_SRGB:       return PURRR_FORMAT_BGRA8RGB;
+  case VK_FORMAT_R16G16B16A16_SFLOAT: return PURRR_FORMAT_RGBA16F;
+  case VK_FORMAT_R32G32B32A32_SFLOAT: return PURRR_FORMAT_RGBA32F;
+  case VK_FORMAT_R64G64B64A64_SFLOAT: return PURRR_FORMAT_RGBA64F;
+
+  case VK_FORMAT_D32_SFLOAT:
+  case VK_FORMAT_D32_SFLOAT_S8_UINT:
+  case VK_FORMAT_D24_UNORM_S8_UINT:
+    return PURRR_FORMAT_DEPTH;
+
+  default: {
+    assert(0 && "Unreachable");
+    return PURRR_FORMAT_UNDEFINED;
+  }
+  }
+}
+
+
+
 bool _purrr_renderer_vulkan_find_queue_families(VkSurfaceKHR surface, VkPhysicalDevice device, uint32_t *g_out, uint32_t *p_out) {
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, VK_NULL_HANDLE);
@@ -260,20 +280,23 @@ void _purrr_vulkan_transition_image_layout(_purrr_renderer_data_t *data, VkImage
                                            VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage) {
   VkCommandBuffer command_buf = _purrr_vulkan_begin_single_time(data);
 
-  VkImageMemoryBarrier barrier = {0};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.oldLayout = old_layout;
-  barrier.newLayout = new_layout;
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image = image;
-  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = 1;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
-  barrier.srcAccessMask = src_access;
-  barrier.dstAccessMask = dst_access;
+  VkImageMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .oldLayout = old_layout,
+    .newLayout = new_layout,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = image,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseMipLevel = 0,
+    .subresourceRange.levelCount = 1,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = 1,
+    .srcAccessMask = src_access,
+    .dstAccessMask = dst_access,
+  };
+  if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;// | VK_IMAGE_ASPECT_STENCIL_BIT;
 
   vkCmdPipelineBarrier(
     command_buf,
@@ -416,11 +439,21 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
   _purrr_sampler_data_t *sampler_data = (_purrr_sampler_data_t*)((_purrr_sampler_t*)texture->info->sampler)->data_ptr;
   assert(renderer_data && sampler_data);
 
+  VkFormat format = vk_format(renderer_data, texture->info->format);
+  VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
+
+  bool depth = (texture->info->format==PURRR_FORMAT_DEPTH);
+  if (depth) {
+    usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    aspect_flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+  }
+
   {
     VkImageCreateInfo create_info = {
       VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, VK_NULL_HANDLE, 0,
       VK_IMAGE_TYPE_2D,
-      vk_format(texture->info->format),
+      format,
       (VkExtent3D){
         .width = texture->info->width,
         .height = texture->info->height,
@@ -430,7 +463,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
       1,
       VK_SAMPLE_COUNT_1_BIT, // TODO: Implement
       VK_IMAGE_TILING_OPTIMAL, // TODO: Add an option for tiling
-      (VkImageUsageFlags)(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT /* TODO: Check format to determine if it's color or depth texture */ | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
+      (VkImageUsageFlags)(usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
       VK_SHARING_MODE_EXCLUSIVE,
       0, NULL,
       VK_IMAGE_LAYOUT_UNDEFINED,
@@ -459,7 +492,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
       VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, VK_NULL_HANDLE, 0,
       data->image,
       VK_IMAGE_VIEW_TYPE_2D,
-      vk_format(texture->info->format),
+      format,
       (VkComponentMapping){
         .r = VK_COMPONENT_SWIZZLE_IDENTITY,
         .g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -467,7 +500,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
         .a = VK_COMPONENT_SWIZZLE_IDENTITY,
       },
       (VkImageSubresourceRange){
-        VK_IMAGE_ASPECT_COLOR_BIT,
+        aspect_flags,
         0,
         1,
         0,
@@ -507,6 +540,12 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
     };
 
     vkUpdateDescriptorSets(renderer_data->device, (uint32_t)1, &descriptor_write, 0, VK_NULL_HANDLE);
+  }
+
+  if (depth) {
+    _purrr_vulkan_transition_image_layout(renderer_data, data->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                          0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
   }
 
   texture->initialized = true;
@@ -577,14 +616,18 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
   assert(data && renderer_data);
 
   {
-    VkAttachmentDescription *color_attachments = (VkAttachmentDescription*)malloc(sizeof(*color_attachments) * pipeline_descriptor->info->color_attachment_count);
+    uint32_t attachment_count = pipeline_descriptor->info->color_attachment_count+(pipeline_descriptor->info->depth_attachment?1:0);
+    VkAttachmentDescription *attachments = (VkAttachmentDescription*)malloc(sizeof(*attachments) * attachment_count);
     VkAttachmentReference *color_references = (VkAttachmentReference*)malloc(sizeof(*color_references) * pipeline_descriptor->info->color_attachment_count);
+
+    bool depth = false;
+    VkAttachmentReference depth_reference = {0};
 
     for (uint32_t i = 0; i < pipeline_descriptor->info->color_attachment_count; ++i) {
       purrr_pipeline_descriptor_attachment_info_t attachment_info = pipeline_descriptor->info->color_attachments[i];
-      color_attachments[i] = (VkAttachmentDescription){
+      attachments[i] = (VkAttachmentDescription){
         0,
-        vk_format(attachment_info.format),
+        vk_format(renderer_data, attachment_info.format),
         VK_SAMPLE_COUNT_1_BIT, // TODO:
         (attachment_info.load?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_CLEAR),
         (attachment_info.store?VK_ATTACHMENT_STORE_OP_STORE:VK_ATTACHMENT_STORE_OP_DONT_CARE),
@@ -599,17 +642,56 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
       };
     }
 
-    VkSubpassDescription subpass = {0};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = pipeline_descriptor->info->color_attachment_count;
-    subpass.pColorAttachments = color_references;
+    if (pipeline_descriptor->info->depth_attachment) {
+      depth_reference.attachment = pipeline_descriptor->info->color_attachment_count;
+      depth_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    VkRenderPassCreateInfo create_info = {0};
-    create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    create_info.attachmentCount = pipeline_descriptor->info->color_attachment_count;
-    create_info.pAttachments = color_attachments;
-    create_info.subpassCount = 1;
-    create_info.pSubpasses = &subpass;
+      purrr_pipeline_descriptor_attachment_info_t attachment_info = *pipeline_descriptor->info->depth_attachment;
+      attachments[depth_reference.attachment] = (VkAttachmentDescription){
+        0,
+        vk_format(renderer_data, attachment_info.format),
+        VK_SAMPLE_COUNT_1_BIT, // TODO:
+        (attachment_info.load?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_CLEAR),
+        (attachment_info.store?VK_ATTACHMENT_STORE_OP_STORE:VK_ATTACHMENT_STORE_OP_DONT_CARE),
+        VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      };
+      depth = true;
+    }
+
+    VkSubpassDescription subpass = {
+      .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+      .colorAttachmentCount = pipeline_descriptor->info->color_attachment_count,
+      .pColorAttachments = color_references,
+      .pDepthStencilAttachment = (depth?&depth_reference:NULL),
+    };
+
+    VkSubpassDependency dependency = {
+      .srcSubpass = VK_SUBPASS_EXTERNAL,
+      .dstSubpass = 0,
+      .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .srcAccessMask = 0,
+      .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
+    if (depth) {
+      dependency.srcStageMask |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+      dependency.dstStageMask |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+      dependency.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    }
+
+    VkRenderPassCreateInfo create_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+      .attachmentCount = attachment_count,
+      .pAttachments = attachments,
+      .subpassCount = 1,
+      .pSubpasses = &subpass,
+      .dependencyCount = 1,
+      .pDependencies = &dependency,
+    };
 
     if (vkCreateRenderPass(renderer_data->device, &create_info, VK_NULL_HANDLE, &data->render_pass) != VK_SUCCESS) goto error;
   }
@@ -714,7 +796,7 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
     vertex_size += info.size;
     vertex_attributes[i].location = i;
     vertex_attributes[i].binding = 0;
-    vertex_attributes[i].format = vk_format(info.format);
+    vertex_attributes[i].format = vk_format(renderer_data, info.format);
     vertex_attributes[i].offset = info.offset;
   }
 
@@ -778,6 +860,17 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
     .pAttachments = &color_blend_attachment,
   };
 
+  VkPipelineDepthStencilStateCreateInfo depth_stencil = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+    .depthTestEnable = VK_TRUE,
+    .depthWriteEnable = VK_TRUE,
+    .depthCompareOp = VK_COMPARE_OP_LESS,
+    .depthBoundsTestEnable = VK_FALSE,
+    .minDepthBounds = 0.0f,
+    .maxDepthBounds = 1.0f,
+    .stencilTestEnable = VK_FALSE,
+  };
+
   VkDescriptorSetLayout *layouts = (VkDescriptorSetLayout*)malloc(sizeof(*layouts)*pipeline->info->descriptor_slot_count);
   for (uint32_t i = 0; i < pipeline->info->descriptor_slot_count; ++i) {
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
@@ -818,6 +911,7 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
     .renderPass = pipeline_descriptor_data->render_pass,
     .subpass = 0,
   };
+  if (((_purrr_pipeline_descriptor_t*)pipeline->info->pipeline_descriptor)->info->depth_attachment) pipeline_info.pDepthStencilState = &depth_stencil;
 
   if (vkCreateGraphicsPipelines(renderer_data->device, VK_NULL_HANDLE, 1, &pipeline_info, VK_NULL_HANDLE, &data->pipeline) != VK_SUCCESS) return false;
 
@@ -856,14 +950,30 @@ bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target) {
   _purrr_pipeline_descriptor_data_t *pipeline_descriptor_data = (_purrr_pipeline_descriptor_data_t*)pipeline_descriptor->data_ptr;
   assert(pipeline_descriptor_data);
 
-  render_target->texture_count = pipeline_descriptor->info->color_attachment_count;
+  render_target->texture_count = pipeline_descriptor->info->color_attachment_count+(pipeline_descriptor->info->depth_attachment?1:0);
   render_target->textures = (_purrr_texture_t**)malloc(sizeof(render_target->textures)*render_target->texture_count);
 
   VkImageView *views = (VkImageView*)malloc(sizeof(*views)*render_target->texture_count);
   if (!views) return false;
 
-  for (uint32_t i = 0; i < pipeline_descriptor->info->color_attachment_count; ++i) {
+  uint32_t i = 0;
+  for (; i < pipeline_descriptor->info->color_attachment_count; ++i) {
     purrr_pipeline_descriptor_attachment_info_t attachment_info = pipeline_descriptor->info->color_attachments[i];
+    if (!attachment_info.sampler || !((_purrr_sampler_t*)attachment_info.sampler)->initialized) return false;
+    purrr_texture_info_t info = {
+      .width = render_target->width,
+      .height = render_target->height,
+      .format = attachment_info.format,
+      .sampler = attachment_info.sampler,
+    };
+
+    _purrr_texture_t *texture = (_purrr_texture_t*)purrr_texture_create(&info, (purrr_renderer_t*)render_target->renderer);
+    if (!texture) return false;
+    render_target->textures[i] = texture;
+    views[i] = ((_purrr_texture_data_t*)texture->data_ptr)->image_view;
+  }
+  if (i < render_target->texture_count) {
+    purrr_pipeline_descriptor_attachment_info_t attachment_info = *pipeline_descriptor->info->depth_attachment;
     if (!attachment_info.sampler || !((_purrr_sampler_t*)attachment_info.sampler)->initialized) return false;
     purrr_texture_info_t info = {
       .width = render_target->width,
@@ -1464,15 +1574,18 @@ bool _purrr_renderer_vulkan_begin_render_target(_purrr_renderer_t *renderer, _pu
   VkRenderPass render_pass = pipeline_descriptor_data->render_pass;
   VkFramebuffer framebuffer = render_target_data->framebuffer;
 
-  uint32_t clear_value_count = render_target->descriptor->info->color_attachment_count;
+  uint32_t color_count = render_target->descriptor->info->color_attachment_count;
+  uint32_t clear_value_count = color_count+(render_target->descriptor->info->depth_attachment?1:0);
   VkClearValue *clear_values = malloc(sizeof(*clear_values)*clear_value_count);
 
   VkClearColorValue clear_color = {
     .float32 = { 1.0f, 1.0f, 1.0f, 1.0f }
   };
+  VkClearDepthStencilValue clear_depth = { 1.0f, 0 };
 
-  for (uint32_t i = 0; i < clear_value_count; ++i)
-    clear_values[i] = (VkClearValue){ clear_color };
+  uint32_t i = 0;
+  for (; i < color_count; ++i) clear_values[i] = (VkClearValue){ clear_color };
+  if (i < clear_value_count) clear_values[i] = (VkClearValue){ .depthStencil = clear_depth };
 
   VkRect2D area = (VkRect2D){
     .offset = (VkOffset2D){0},
