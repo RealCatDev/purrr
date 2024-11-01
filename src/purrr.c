@@ -61,15 +61,24 @@ purrr_window_t *purrr_window_create(purrr_window_info_t *info) {
   return (purrr_window_t*)internal;
 }
 
+void purrr_window_destroy(purrr_window_t *window) {
+  _purrr_window_t *internal = (_purrr_window_t*)window;
+  assert(internal);
+  if (internal->window) glfwDestroyWindow(internal->window);
+  free(internal);
+}
+
 bool purrr_window_should_close(purrr_window_t *window) {
   return glfwWindowShouldClose(((_purrr_window_t*)window)->window);
 }
 
-void purrr_window_destroy(purrr_window_t *window) {
-  if (!window) return;
+void purrr_window_get_size(purrr_window_t *window, uint32_t *out_width, uint32_t *out_height) {
   _purrr_window_t *internal = (_purrr_window_t*)window;
-  if (internal->window) glfwDestroyWindow(internal->window);
-  free(internal);
+  assert(internal && internal->window);
+  int width = 0, height = 0;
+  glfwGetWindowSize(internal->window, &width, &height);
+  if (out_width) *out_width = (uint32_t)width;
+  if (out_height) *out_height = (uint32_t)height;
 }
 
 // sampler
@@ -321,6 +330,50 @@ void purrr_mesh_destroy(purrr_mesh_t *mesh) {
   if (mesh) _purrr_mesh_free((_purrr_mesh_t*)mesh);
 }
 
+// buffer
+
+purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t *renderer) {
+  if (!info || info->type >= COUNT_PURRR_BUFFER_TYPES) return NULL;
+
+  _purrr_buffer_t *internal = (_purrr_buffer_t*)malloc(sizeof(*internal));
+  if (!internal) return NULL;
+  memset(internal, 0, sizeof(*internal));
+  internal->info = info;
+  internal->renderer = (_purrr_renderer_t*)renderer;
+
+  switch (internal->renderer->api) {
+  case PURRR_API_VULKAN: {
+    internal->init = _purrr_buffer_vulkan_init;
+    internal->cleanup = _purrr_buffer_vulkan_cleanup;
+    internal->copy = _purrr_buffer_vulkan_copy;
+  } break;
+  case COUNT_PURRR_APIS:
+  default: {
+    assert(0 && "Unreachable");
+    return NULL;
+  }
+  }
+
+  if (!internal->init(internal)) {
+    _purrr_buffer_free(internal);
+    return NULL;
+  }
+
+  internal->initialized = true;
+
+  return (purrr_buffer_t*)internal;
+}
+
+void purrr_buffer_destroy(purrr_buffer_t *buffer) {
+  if (buffer) _purrr_buffer_free((_purrr_buffer_t*)buffer);
+}
+
+bool purrr_buffer_copy(purrr_buffer_t *buffer, void *data, uint32_t size, uint32_t offset) {
+  _purrr_buffer_t *internal = (_purrr_buffer_t*)buffer;
+  assert(internal && internal->copy);
+  return internal->copy(internal, data, size, offset);
+}
+
 // renderer
 
 purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
@@ -340,6 +393,7 @@ purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
     internal->begin_render_target = _purrr_renderer_vulkan_begin_render_target;
     internal->bind_pipeline = _purrr_renderer_vulkan_bind_pipeline;
     internal->bind_texture = _purrr_renderer_vulkan_bind_texture;
+    internal->bind_buffer = _purrr_renderer_vulkan_bind_buffer;
     internal->draw_mesh = _purrr_renderer_vulkan_draw_mesh;
     internal->end_render_target = _purrr_renderer_vulkan_end_render_target;
     internal->end_frame = _purrr_renderer_vulkan_end_frame;
@@ -400,6 +454,12 @@ void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *te
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
   assert(internal && internal->bind_texture && texture);
   assert(internal->bind_texture(internal, (_purrr_texture_t*)texture, slot_index));
+}
+
+void purrr_renderer_bind_buffer(purrr_renderer_t *renderer, purrr_buffer_t *buffer, uint32_t slot_index) {
+  _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
+  assert(internal && internal->bind_buffer && buffer);
+  assert(internal->bind_buffer(internal, (_purrr_buffer_t*)buffer, slot_index));
 }
 
 void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh) {

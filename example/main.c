@@ -23,7 +23,6 @@ static vertex_t gVertices[] = {
 
 void resize(void *data) {
   (void)data;
-  printf("Resized!\n");
 }
 
 int main(void) {
@@ -175,8 +174,10 @@ int main(void) {
   purrr_pipeline_t *offscreen_pipeline = purrr_pipeline_create(&offscreen_pipeline_info, renderer);
   assert(offscreen_pipeline);
 
-  purrr_renderer_set_user_data(renderer, NULL);
+  purrr_renderer_set_user_data(renderer, window);
   purrr_renderer_set_resize_callback(renderer, resize);
+
+  resize(window);
 
   while (!purrr_window_should_close(window)) {
     purrr_renderer_begin_frame(renderer);

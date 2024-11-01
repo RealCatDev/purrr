@@ -26,6 +26,7 @@ typedef struct purrr_pipeline_descriptor_s purrr_pipeline_descriptor_t;
 typedef struct purrr_render_target_s purrr_render_target_t;
 typedef struct purrr_pipeline_s purrr_pipeline_t;
 typedef struct purrr_mesh_s purrr_mesh_t;
+typedef struct purrr_buffer_s purrr_buffer_t;
 
 // Enums
 
@@ -66,6 +67,8 @@ typedef enum {
 
 typedef enum {
   PURRR_DESCRIPTOR_TYPE_TEXTURE = 0,
+  PURRR_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+  PURRR_DESCRIPTOR_TYPE_STORAGE_BUFFER,
   COUNT_PURRR_DESCRIPTOR_TYPES
 } purrr_descriptor_type_t;
 
@@ -75,6 +78,12 @@ typedef enum {
   PURRR_SHADER_TYPE_COMPUTE,
   COUNT_PURRR_SHADER_TYPES
 } purrr_shader_type_t;
+
+typedef enum {
+  PURRR_BUFFER_TYPE_UNIFORM = 0,
+  PURRR_BUFFER_TYPE_STORAGE,
+  COUNT_PURRR_BUFFER_TYPES
+} purrr_buffer_type_t;
 
 // Infos
 
@@ -155,6 +164,11 @@ typedef struct {
 } purrr_mesh_info_t;
 
 typedef struct {
+  purrr_buffer_type_t type;
+  uint32_t size;
+} purrr_buffer_info_t;
+
+typedef struct {
   purrr_window_t *window;
   bool vsync;
 
@@ -170,8 +184,9 @@ typedef struct {
 // Functions
 
 purrr_window_t *purrr_window_create(purrr_window_info_t *info);
-bool purrr_window_should_close(purrr_window_t *window);
 void purrr_window_destroy(purrr_window_t *window);
+bool purrr_window_should_close(purrr_window_t *window);
+void purrr_window_get_size(purrr_window_t *window, uint32_t *width, uint32_t *height);
 
 purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer);
 void purrr_sampler_destroy(purrr_sampler_t *sampler);
@@ -194,6 +209,10 @@ void purrr_pipeline_destroy(purrr_pipeline_t *pipeline);
 purrr_mesh_t *purrr_mesh_create(purrr_mesh_info_t *info, purrr_renderer_t *renderer);
 void purrr_mesh_destroy(purrr_mesh_t *mesh);
 
+purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t *renderer);
+void purrr_buffer_destroy(purrr_buffer_t *buffer);
+bool purrr_buffer_copy(purrr_buffer_t *buffer, void *data, uint32_t size, uint32_t offset);
+
 // Callbacks
 typedef void (*purrr_renderer_resize_cb)(void *user_pointer);
 
@@ -208,6 +227,7 @@ void purrr_renderer_begin_frame(purrr_renderer_t *renderer);
 void purrr_renderer_begin_render_target(purrr_renderer_t *renderer, purrr_render_target_t *render_target);
 void purrr_renderer_bind_pipeline(purrr_renderer_t *renderer, purrr_pipeline_t *pipeline);
 void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *texture, uint32_t slot_index);
+void purrr_renderer_bind_buffer(purrr_renderer_t *renderer, purrr_buffer_t *buffer, uint32_t slot_index);
 void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh);
 void purrr_renderer_end_render_target(purrr_renderer_t *renderer);
 void purrr_renderer_end_frame(purrr_renderer_t *renderer);

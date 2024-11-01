@@ -47,6 +47,18 @@ VkSamplerAddressMode vk_sampler_address_mode(purrr_sampler_address_mode_t addres
   }
 }
 
+VkDescriptorType vk_descriptor_type(purrr_buffer_type_t type) {
+  switch (type) {
+  case PURRR_BUFFER_TYPE_UNIFORM: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  case PURRR_BUFFER_TYPE_STORAGE: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  case COUNT_PURRR_BUFFER_TYPES:
+  default: {
+    assert(0 && "Unreachable");
+    return 0;
+  }
+  }
+}
+
 // Data structs
 
 typedef struct {
@@ -79,6 +91,12 @@ typedef struct {
   VkBuffer index_buffer;
   VkDeviceMemory index_buffer_memory;
 } _purrr_mesh_data_t;
+
+typedef struct {
+  VkBuffer buffer;
+  VkDeviceMemory buffer_memory;
+  VkDescriptorSet set;
+} _purrr_buffer_data_t;
 
 typedef struct {
   VkInstance instance;
@@ -114,6 +132,8 @@ typedef struct {
 
   VkDescriptorPool descriptor_pool;
   VkDescriptorSetLayout image_descriptor_set_layout;
+  VkDescriptorSetLayout uniform_descriptor_set_layout;
+  VkDescriptorSetLayout storage_descriptor_set_layout;
 
   VkSampler sampler;
 } _purrr_renderer_data_t;
@@ -310,11 +330,13 @@ void _purrr_vulkan_transition_image_layout(_purrr_renderer_data_t *data, VkImage
   _purrr_vulkan_end_single_time(data, command_buf);
 }
 
-void _purrr_renderer_vulkan_copy_buffer(_purrr_renderer_data_t *data, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+void _purrr_renderer_vulkan_copy_buffer(_purrr_renderer_data_t *data, VkBuffer src, VkBuffer dst, VkDeviceSize size, VkDeviceSize offset) {
   VkCommandBuffer cmd_buf = _purrr_vulkan_begin_single_time(data);
 
   VkBufferCopy copy_region = {
     .size = size,
+    .srcOffset = 0,
+    .dstOffset = offset,
   };
   vkCmdCopyBuffer(cmd_buf, src, dst, 1, &copy_region);
 
@@ -875,9 +897,15 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
   for (uint32_t i = 0; i < pipeline->info->descriptor_slot_count; ++i) {
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
     switch (pipeline->info->descriptor_slots[i]) {
-    case PURRR_DESCRIPTOR_TYPE_TEXTURE: {
+    case PURRR_DESCRIPTOR_TYPE_TEXTURE:
       layout = renderer_data->image_descriptor_set_layout;
-    } break;
+      break;
+    case PURRR_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+      layout = renderer_data->uniform_descriptor_set_layout;
+      break;
+    case PURRR_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+      layout = renderer_data->storage_descriptor_set_layout;
+      break;
     case COUNT_PURRR_DESCRIPTOR_TYPES: {
       assert(0 && "Unreachable");
       return false;
@@ -1051,7 +1079,7 @@ bool _purrr_mesh_vulkan_init(_purrr_mesh_t *mesh) {
 
     if (!_purrr_renderer_vulkan_create_buffer(renderer_data, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->vertex_buffer, &data->vertex_buffer_memory)) return false;
 
-    _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->vertex_buffer, buffer_size);
+    _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->vertex_buffer, buffer_size, 0);
 
     vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
     vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
@@ -1071,7 +1099,7 @@ bool _purrr_mesh_vulkan_init(_purrr_mesh_t *mesh) {
 
     if (!_purrr_renderer_vulkan_create_buffer(renderer_data, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->index_buffer, &data->index_buffer_memory)) return false;
 
-    _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->index_buffer, buffer_size);
+    _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->index_buffer, buffer_size, 0);
 
     vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
     vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
@@ -1094,6 +1122,110 @@ void _purrr_mesh_vulkan_cleanup(_purrr_mesh_t *mesh) {
   }
   free(data);
   mesh->initialized = false;
+}
+
+// buffer
+
+bool _purrr_buffer_vulkan_init(_purrr_buffer_t *buffer) {
+  if (!buffer) return false;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)buffer->renderer->data_ptr;
+  _purrr_buffer_data_t *data = (_purrr_buffer_data_t*)malloc(sizeof(*data));
+  assert(data && renderer_data);
+  memset(data, 0, sizeof(*data));
+
+  VkBufferUsageFlagBits usage = 0;
+  VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+  switch (buffer->info->type) {
+  case PURRR_BUFFER_TYPE_UNIFORM:
+    usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    layout = renderer_data->uniform_descriptor_set_layout;
+    break;
+  case PURRR_BUFFER_TYPE_STORAGE:
+    usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    layout = renderer_data->storage_descriptor_set_layout;
+    break;
+  case COUNT_PURRR_BUFFER_TYPES:
+  default: {
+    assert(0 && "Unreachable");
+    return false;
+  }
+  }
+
+  purrr_buffer_info_t info = *buffer->info;
+  {
+    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->buffer, &data->buffer_memory)) return false;
+  }
+
+  {
+    VkDescriptorSetAllocateInfo alloc_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+      .descriptorPool = renderer_data->descriptor_pool,
+      .descriptorSetCount = 1,
+      .pSetLayouts = &layout,
+    };
+
+    if (vkAllocateDescriptorSets(renderer_data->device, &alloc_info, &data->set) != VK_SUCCESS) return false;
+  }
+
+  {
+    VkDescriptorBufferInfo buffer_info = {
+      .buffer = data->buffer,
+      .offset = 0,
+      .range = buffer->info->size,
+    };
+
+    VkWriteDescriptorSet descriptor_write = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = data->set,
+      .dstBinding = 0,
+      .dstArrayElement = 0,
+      .descriptorType = vk_descriptor_type(buffer->info->type),
+      .descriptorCount = 1,
+      .pBufferInfo = &buffer_info,
+    };
+
+    vkUpdateDescriptorSets(renderer_data->device, (uint32_t)1, &descriptor_write, 0, VK_NULL_HANDLE);
+  }
+
+  buffer->data_ptr = data;
+
+  return true;
+}
+
+void _purrr_buffer_vulkan_cleanup(_purrr_buffer_t *buffer) {
+  if (!buffer) return;
+  _purrr_buffer_data_t *data = (_purrr_buffer_data_t*)buffer->data_ptr;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)buffer->renderer->data_ptr;
+  if (!data || !renderer_data) return;
+  if (buffer->initialized) {
+    vkDestroyBuffer(renderer_data->device, data->buffer, VK_NULL_HANDLE);
+    vkFreeMemory(renderer_data->device, data->buffer_memory, VK_NULL_HANDLE);
+  }
+  free(data);
+  buffer->initialized = false;
+}
+
+bool _purrr_buffer_vulkan_copy(_purrr_buffer_t *buffer, void *in_data, uint32_t size, uint32_t offset) {
+  if (!buffer || !buffer->initialized) return false;
+  assert(size <= buffer->info->size);
+  _purrr_buffer_data_t *data = (_purrr_buffer_data_t*)buffer->data_ptr;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)buffer->renderer->data_ptr;
+  if (!data || !renderer_data) return false;
+
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+  if (!_purrr_renderer_vulkan_create_buffer(renderer_data, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &staging_buffer, &staging_buffer_memory)) return false;
+
+  void* buffer_data;
+  vkMapMemory(renderer_data->device, staging_buffer_memory, 0, size, 0, &buffer_data);
+    memcpy(buffer_data, in_data, (size_t)size);
+  vkUnmapMemory(renderer_data->device, staging_buffer_memory);
+
+  _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->buffer, size, offset);
+
+  vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
+  vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
+  return true;
 }
 
 // renderer
@@ -1492,7 +1624,7 @@ bool _purrr_renderer_vulkan_init(_purrr_renderer_t *renderer) {
       .binding = 0,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       .descriptorCount = 1,
-      .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .stageFlags = VK_SHADER_STAGE_ALL,
     };
 
     VkDescriptorSetLayoutCreateInfo layout_info = {
@@ -1502,6 +1634,40 @@ bool _purrr_renderer_vulkan_init(_purrr_renderer_t *renderer) {
     };
 
     if (vkCreateDescriptorSetLayout(data->device, &layout_info, VK_NULL_HANDLE, &data->image_descriptor_set_layout) != VK_SUCCESS) return false;
+  }
+
+  {
+    VkDescriptorSetLayoutBinding binding = {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_ALL,
+    };
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 1,
+      .pBindings = &binding,
+    };
+
+    if (vkCreateDescriptorSetLayout(data->device, &layout_info, VK_NULL_HANDLE, &data->uniform_descriptor_set_layout) != VK_SUCCESS) return false;
+  }
+
+  {
+    VkDescriptorSetLayoutBinding binding = {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_ALL,
+    };
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 1,
+      .pBindings = &binding,
+    };
+
+    if (vkCreateDescriptorSetLayout(data->device, &layout_info, VK_NULL_HANDLE, &data->storage_descriptor_set_layout) != VK_SUCCESS) return false;
   }
 
   renderer->initialized = true;
@@ -1524,6 +1690,8 @@ void _purrr_renderer_vulkan_cleanup(_purrr_renderer_t *renderer) {
     }
 
     vkDestroyDescriptorSetLayout(data->device, data->image_descriptor_set_layout, VK_NULL_HANDLE);
+    vkDestroyDescriptorSetLayout(data->device, data->uniform_descriptor_set_layout, VK_NULL_HANDLE);
+    vkDestroyDescriptorSetLayout(data->device, data->storage_descriptor_set_layout, VK_NULL_HANDLE);
     vkDestroyDescriptorPool(data->device, data->descriptor_pool, VK_NULL_HANDLE);
 
     vkDestroyCommandPool(data->device, data->command_pool, VK_NULL_HANDLE);
@@ -1643,6 +1811,20 @@ bool _purrr_renderer_vulkan_bind_texture(_purrr_renderer_t *renderer, _purrr_tex
   assert(pipeline_data);
 
   vkCmdBindDescriptorSets(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline_layout, slot_index, 1, &texture_data->image_set, 0, NULL);
+
+  return true;
+}
+
+bool _purrr_renderer_vulkan_bind_buffer(_purrr_renderer_t *renderer, _purrr_buffer_t *buffer, uint32_t slot_index) {
+  if (!renderer || !renderer->initialized || !buffer || !buffer->initialized) return false;
+  _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
+  _purrr_buffer_data_t *buffer_data = (_purrr_buffer_data_t*)buffer->data_ptr;
+  assert(data && buffer_data);
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_render_target->initialized || !data->active_pipeline || !data->active_pipeline->initialized || slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
+  _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
+  assert(pipeline_data);
+
+  vkCmdBindDescriptorSets(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline_layout, slot_index, 1, &buffer_data->set, 0, NULL);
 
   return true;
 }
