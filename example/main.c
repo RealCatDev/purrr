@@ -48,11 +48,11 @@ int main(void) {
 
   purrr_pipeline_shader_info_t shaders[] = {
     (purrr_pipeline_shader_info_t){
-      .file_path = "./example/vertex.spv",
+      .buffer = "./example/vertex.spv",
       .type = PURRR_SHADER_TYPE_VERTEX
     },
     (purrr_pipeline_shader_info_t){
-      .file_path = "./example/fragment.spv",
+      .buffer = "./example/fragment.spv",
       .type = PURRR_SHADER_TYPE_FRAGMENT
     },
   };

@@ -128,7 +128,8 @@ typedef struct {
 } purrr_render_target_info_t;
 
 typedef struct {
-  const char *file_path;
+  char *buffer;
+  size_t size; // if 0, load buffer from file `buffer`
   purrr_shader_type_t type;
 } purrr_pipeline_shader_info_t;
 

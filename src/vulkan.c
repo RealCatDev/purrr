@@ -739,34 +739,34 @@ void _purrr_pipeline_descriptor_vulkan_cleanup(_purrr_pipeline_descriptor_t *pip
 
 // pipeline
 
-VkShaderModule _purrr_vulkan_load_shader(_purrr_renderer_data_t *data, const char *file_path) {
-  FILE *fd = fopen(file_path, "rb");
-  if (!fd) return VK_NULL_HANDLE;
-  fseek(fd, 0, SEEK_END);
-  long size = ftell(fd);
-  fseek(fd, 0, SEEK_SET);
+VkShaderModule _purrr_vulkan_create_shader(_purrr_renderer_data_t *data, char *buffer, size_t size) {
+  bool free_buffer = false;
+  if (size == 0) {
+    FILE *fd = fopen(buffer, "rb");
+    if (!fd) return VK_NULL_HANDLE;
+    fseek(fd, 0, SEEK_END);
+    size = (size_t)ftell(fd);
+    fseek(fd, 0, SEEK_SET);
+    buffer = malloc(size);
+    if ((size % 4) != 0 || !buffer ||
+        (fread(buffer, size, 1, fd) != 1)) {
+      fclose(fd);
+      free(buffer);
+      return VK_NULL_HANDLE;
+    }
+  }
 
   VkShaderModule shader_module = VK_NULL_HANDLE;
-
-  if (size <= 0 || (size % 4) != 0) goto defer;
-
-  char *buf = malloc(size);
-  if (!buf) goto defer;
-
-  if (fread(buf, size, 1, fd) != 1) goto defer;
 
   VkShaderModuleCreateInfo create_info = {
     .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
     .codeSize = (uint32_t)size,
-    .pCode = (const uint32_t*)buf,
+    .pCode = (const uint32_t*)buffer,
   };
 
   vkCreateShaderModule(data->device, &create_info, VK_NULL_HANDLE, &shader_module);
 
-  free(buf);
-
-defer:
-  fclose(fd);
+  if (free_buffer) free(buffer);
 
   return shader_module;
 }
@@ -784,7 +784,9 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
   VkPipelineShaderStageCreateInfo *stage_infos = (VkPipelineShaderStageCreateInfo*)malloc(sizeof(*stage_infos)*pipeline->info->shader_info_count);
   for (uint32_t i = 0; i < pipeline->info->shader_info_count; ++i) {
     purrr_pipeline_shader_info_t info = pipeline->info->shader_infos[i];
-    shader_modules[i] = _purrr_vulkan_load_shader(renderer_data, info.file_path);
+    assert(info.buffer);
+    shader_modules[i] = _purrr_vulkan_create_shader(renderer_data, info.buffer, info.size);
+    assert(shader_modules[i]);
 
     stage_infos[i] = (VkPipelineShaderStageCreateInfo){
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
