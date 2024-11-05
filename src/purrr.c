@@ -1,10 +1,8 @@
-#define NOB_IMPLEMENTATION
-#include <nob.h>
-
 #include "internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 purrr_window_t *purrr_window_create(purrr_window_info_t *info) {
   if (!info || info->api >= COUNT_PURRR_APIS) return NULL;

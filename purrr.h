@@ -5,7 +5,7 @@
 #error "Please include nobe.h before purrr.h"
 #endif // NOBE_H_
 
-Nobe_Target create_purrr_target(const char *path, bool debug, Nobe_Target *nob_target, Nobe_Target *glfw_target, Nobe_Target *vulkan_target) {
+Nobe_Target create_purrr_target(const char *path, bool debug, Nobe_Target *glfw_target, Nobe_Target *vulkan_target) {
   Nobe_Target target = {
     .kind = NOBE_TARGET_KIND_LIBRARY,
     .name = "purrr",
@@ -33,10 +33,6 @@ Nobe_Target create_purrr_target(const char *path, bool debug, Nobe_Target *nob_t
   nob_da_append_many(&target.includes, includes, NOB_ARRAY_LEN(includes));
 
   Nobe_Target_Dependency dependencies[] = {
-    (Nobe_Target_Dependency){
-      .kind = NOBE_TARGET_DEPENDENCY_KIND_TARGET,
-      .as.target = nob_target,
-    },
     (Nobe_Target_Dependency){
       .kind = NOBE_TARGET_DEPENDENCY_KIND_TARGET,
       .as.target = glfw_target,

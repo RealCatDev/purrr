@@ -36,23 +36,6 @@ Nobe_Target create_vulkan_target(const char *path) {
   return target;
 }
 
-Nobe_Target_Include nob_include = {
-  .visibility = NOBE_VISIBILITY_PUBLIC,
-  .path = "./deps/nob/",
-};
-
-Nobe_Target nob_target = {
-  .kind = NOBE_TARGET_KIND_INTERFACE,
-  .name = "nob",
-  .path_name = NULL,
-  .path = NULL,
-  .includes = {
-    .items = &nob_include,
-    .capacity = 1,
-    .count = 1,
-  }
-};
-
 Nobe_Target create_example_target(Nobe_Target *purrr_target) {
   Nobe_Target target = {
     .kind = NOBE_TARGET_KIND_EXECUTABLE,
@@ -98,7 +81,7 @@ int main(int argc, char **argv) {
 
   bool debug = (argc == 1 && strcmp(nob_shift_args(&argc, &argv), "dbg") == 0);
 
-  Nobe_Target purrr_target = create_purrr_target("./", debug, &nob_target, &glfw_target, &vulkan_target);
+  Nobe_Target purrr_target = create_purrr_target("./", debug, &glfw_target, &vulkan_target);
   if (!nobe_target_build(&purrr_target)) return 1;
 
   Nobe_Target example_target = create_example_target(&purrr_target);
