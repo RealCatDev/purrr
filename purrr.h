@@ -10,7 +10,7 @@ Nobe_Target create_purrr_target(const char *path, bool debug, Nobe_Target *glfw_
     .kind = NOBE_TARGET_KIND_LIBRARY,
     .name = "purrr",
     .path_name = "libpurrr.a",
-    .path = "./src/",
+    .path = nob_temp_sprintf("%s/src/", path),
   };
 
   const char *sources[] = {
@@ -23,11 +23,11 @@ Nobe_Target create_purrr_target(const char *path, bool debug, Nobe_Target *glfw_
   Nobe_Target_Include includes[] = {
     (Nobe_Target_Include){
       .visibility = NOBE_VISIBILITY_PUBLIC,
-      .path = "./include/",
+      .path = nob_temp_sprintf("%s/include/", path),
     },
     (Nobe_Target_Include){
       .visibility = NOBE_VISIBILITY_PRIVATE,
-      .path = "./src/",
+      .path = target.path,
     },
   };
   nob_da_append_many(&target.includes, includes, NOB_ARRAY_LEN(includes));
