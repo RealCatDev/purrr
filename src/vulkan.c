@@ -175,7 +175,7 @@ VkFormat vk_format(_purrr_renderer_data_t *data, purrr_format_t format) {
   }
 }
 
-VkDeviceSize format_size(purrr_format_t) {
+VkDeviceSize format_size(purrr_format_t format) {
   switch (format) {
   case PURRR_FORMAT_UNDEFINED: return 0;
   case PURRR_FORMAT_R8U:       return 1;
@@ -572,7 +572,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
     VkDescriptorImageInfo image_info = {
       .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       .imageView = data->image_view,
-      .sampler = sampler_data->sampler,
+      .sampler = ((format != VK_FORMAT_R8_UINT)?sampler_data->sampler:NULL),
     };
 
     VkWriteDescriptorSet descriptor_write = {
@@ -580,7 +580,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
       .dstSet = data->image_set,
       .dstBinding = 0,
       .dstArrayElement = 0,
-      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorType = ((format == VK_FORMAT_R8_UINT)?VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
       .descriptorCount = 1,
       .pImageInfo = &image_info,
     };
