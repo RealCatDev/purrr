@@ -143,6 +143,7 @@ typedef struct {
 VkFormat vk_format(_purrr_renderer_data_t *data, purrr_format_t format) {
   switch (format) {
   case PURRR_FORMAT_UNDEFINED: return VK_FORMAT_UNDEFINED;
+  case PURRR_FORMAT_R8U:       return VK_FORMAT_R8_UINT;
   case PURRR_FORMAT_RGBA8U:    return VK_FORMAT_R8G8B8A8_UNORM;
   case PURRR_FORMAT_RGBA8RGB:  return VK_FORMAT_R8G8B8A8_SRGB;
   case PURRR_FORMAT_BGRA8U:    return VK_FORMAT_B8G8R8A8_UNORM;
@@ -165,6 +166,29 @@ VkFormat vk_format(_purrr_renderer_data_t *data, purrr_format_t format) {
 
     return VK_FORMAT_UNDEFINED;
   } break;
+
+  case COUNT_PURRR_FORMATS:
+  default: {
+    assert(0 && "Unreachable");
+    return VK_FORMAT_UNDEFINED;
+  }
+  }
+}
+
+VkDeviceSize format_size(purrr_format_t) {
+  switch (format) {
+  case PURRR_FORMAT_UNDEFINED: return 0;
+  case PURRR_FORMAT_R8U:       return 1;
+  case PURRR_FORMAT_RGBA8U:    return 4;
+  case PURRR_FORMAT_RGBA8RGB:  return 4;
+  case PURRR_FORMAT_BGRA8U:    return 4;
+  case PURRR_FORMAT_BGRA8RGB:  return 4;
+  case PURRR_FORMAT_RGBA16F:   return 4;
+  case PURRR_FORMAT_RG32F:     return 2;
+  case PURRR_FORMAT_RGB32F:    return 3;
+  case PURRR_FORMAT_RGBA32F:   return 4;
+  case PURRR_FORMAT_RGBA64F:   return 4;
+  case PURRR_FORMAT_DEPTH:     return 0; // idc
 
   case COUNT_PURRR_FORMATS:
   default: {
@@ -599,7 +623,7 @@ bool _purrr_texture_vulkan_load(_purrr_texture_t *dst, uint8_t *src, uint32_t sr
   assert(data && renderer_data);
   if (dst->width < src_width || dst->height < src_height) return false;
 
-  VkDeviceSize size = src_width*src_height*4; // TODO: Determine channel size based of the format
+  VkDeviceSize size = src_width*src_height*format_size(dst->info->format);
 
   VkBuffer staging_buffer;
   VkDeviceMemory staging_buffer_memory;
