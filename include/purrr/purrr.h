@@ -1,5 +1,5 @@
-#ifndef   PURRR_HPP_
-#define   PURRR_HPP_
+#ifndef   PURRR_H_
+#define   PURRR_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -237,7 +237,7 @@ void purrr_renderer_wait(purrr_renderer_t *renderer);
 
 void purrr_poll_events();
 
-#endif // PURRR_HPP_
+#endif // PURRR_H_
 
 /*
  * TODO( #1): Add support for other graphics apis
