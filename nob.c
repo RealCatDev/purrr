@@ -10,7 +10,7 @@
 #include "glfw.h"
 
 const char *cflags[] = {
-  "-Wall", "-Wextra", "-Werror", "-std=c99", "-pedantic", "-ggdb",
+  "-Wall", "-Wextra", "-Werror", "-std=c99", "-pedantic", "-ggdb", "-Wswitch-enum"
 };
 
 Nobe_Target create_vulkan_target(const char *path) {

@@ -142,17 +142,18 @@ typedef struct {
 
 VkFormat vk_format(_purrr_renderer_data_t *data, purrr_format_t format) {
   switch (format) {
-  case PURRR_FORMAT_UNDEFINED: return VK_FORMAT_UNDEFINED;
-  case PURRR_FORMAT_R8U:       return VK_FORMAT_R8_UINT;
-  case PURRR_FORMAT_RGBA8U:    return VK_FORMAT_R8G8B8A8_UNORM;
-  case PURRR_FORMAT_RGBA8RGB:  return VK_FORMAT_R8G8B8A8_SRGB;
-  case PURRR_FORMAT_BGRA8U:    return VK_FORMAT_B8G8R8A8_UNORM;
-  case PURRR_FORMAT_BGRA8RGB:  return VK_FORMAT_B8G8R8A8_SRGB;
-  case PURRR_FORMAT_RGBA16F:   return VK_FORMAT_R16G16B16A16_SFLOAT;
-  case PURRR_FORMAT_RG32F:     return VK_FORMAT_R32G32_SFLOAT;
-  case PURRR_FORMAT_RGB32F:    return VK_FORMAT_R32G32B32_SFLOAT;
-  case PURRR_FORMAT_RGBA32F:   return VK_FORMAT_R32G32B32A32_SFLOAT;
-  case PURRR_FORMAT_RGBA64F:   return VK_FORMAT_R64G64B64A64_SFLOAT;
+  case PURRR_FORMAT_UNDEFINED:  return VK_FORMAT_UNDEFINED;
+  case PURRR_FORMAT_GRAYSCALE:  return VK_FORMAT_R8_UNORM;
+  case PURRR_FORMAT_GRAY_ALPHA: return VK_FORMAT_R8G8_UNORM;
+  case PURRR_FORMAT_RGBA8U:     return VK_FORMAT_R8G8B8A8_UNORM;
+  case PURRR_FORMAT_RGBA8RGB:   return VK_FORMAT_R8G8B8A8_SRGB;
+  case PURRR_FORMAT_BGRA8U:     return VK_FORMAT_B8G8R8A8_UNORM;
+  case PURRR_FORMAT_BGRA8RGB:   return VK_FORMAT_B8G8R8A8_SRGB;
+  case PURRR_FORMAT_RGBA16F:    return VK_FORMAT_R16G16B16A16_SFLOAT;
+  case PURRR_FORMAT_RG32F:      return VK_FORMAT_R32G32_SFLOAT;
+  case PURRR_FORMAT_RGB32F:     return VK_FORMAT_R32G32B32_SFLOAT;
+  case PURRR_FORMAT_RGBA32F:    return VK_FORMAT_R32G32B32A32_SFLOAT;
+  case PURRR_FORMAT_RGBA64F:    return VK_FORMAT_R64G64B64A64_SFLOAT;
 
   case PURRR_FORMAT_DEPTH: {
     VkFormat candidates[] = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
@@ -177,18 +178,19 @@ VkFormat vk_format(_purrr_renderer_data_t *data, purrr_format_t format) {
 
 VkDeviceSize format_size(purrr_format_t format) {
   switch (format) {
-  case PURRR_FORMAT_UNDEFINED: return 0;
-  case PURRR_FORMAT_R8U:       return 1;
-  case PURRR_FORMAT_RGBA8U:    return 4;
-  case PURRR_FORMAT_RGBA8RGB:  return 4;
-  case PURRR_FORMAT_BGRA8U:    return 4;
-  case PURRR_FORMAT_BGRA8RGB:  return 4;
-  case PURRR_FORMAT_RGBA16F:   return 4;
-  case PURRR_FORMAT_RG32F:     return 2;
-  case PURRR_FORMAT_RGB32F:    return 3;
-  case PURRR_FORMAT_RGBA32F:   return 4;
-  case PURRR_FORMAT_RGBA64F:   return 4;
-  case PURRR_FORMAT_DEPTH:     return 0; // idc
+  case PURRR_FORMAT_UNDEFINED:  return 0;
+  case PURRR_FORMAT_GRAYSCALE:  return 1;
+  case PURRR_FORMAT_GRAY_ALPHA: return 2;
+  case PURRR_FORMAT_RGBA8U:     return 4;
+  case PURRR_FORMAT_RGBA8RGB:   return 4;
+  case PURRR_FORMAT_BGRA8U:     return 4;
+  case PURRR_FORMAT_BGRA8RGB:   return 4;
+  case PURRR_FORMAT_RGBA16F:    return 4;
+  case PURRR_FORMAT_RG32F:      return 2;
+  case PURRR_FORMAT_RGB32F:     return 3;
+  case PURRR_FORMAT_RGBA32F:    return 4;
+  case PURRR_FORMAT_RGBA64F:    return 4;
+  case PURRR_FORMAT_DEPTH:      return 0; // idc
 
   case COUNT_PURRR_FORMATS:
   default: {
@@ -508,7 +510,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
       1, // TODO: Implement
       1,
       VK_SAMPLE_COUNT_1_BIT, // TODO: Implement
-      VK_IMAGE_TILING_OPTIMAL, // TODO: Add an option for tiling
+      VK_IMAGE_TILING_OPTIMAL, // TODO: Add an option for tiling (if needed)
       (VkImageUsageFlags)(usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
       VK_SHARING_MODE_EXCLUSIVE,
       0, NULL,
@@ -539,12 +541,7 @@ bool _purrr_texture_vulkan_init(_purrr_texture_t *texture) {
       data->image,
       VK_IMAGE_VIEW_TYPE_2D,
       format,
-      (VkComponentMapping){
-        .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-      },
+      (VkComponentMapping){0},
       (VkImageSubresourceRange){
         aspect_flags,
         0,
@@ -1773,7 +1770,7 @@ bool _purrr_renderer_vulkan_begin_render_target(_purrr_renderer_t *renderer, _pu
   VkClearValue *clear_values = malloc(sizeof(*clear_values)*clear_value_count);
 
   VkClearColorValue clear_color = {
-    .float32 = { 1.0f, 1.0f, 1.0f, 1.0f }
+    .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } // TODO: Let user decide
   };
   VkClearDepthStencilValue clear_depth = { 1.0f, 0 };
 

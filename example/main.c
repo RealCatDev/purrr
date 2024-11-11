@@ -113,10 +113,10 @@ int main(void) {
   purrr_texture_t *texture = NULL;
   {
     int w, h, c;
-    stbi_uc *pixels = stbi_load("./example/chp.png", &w, &h, &c, STBI_rgb_alpha);
+    stbi_uc *pixels = stbi_load("./example/chp.png", &w, &h, &c, STBI_grey_alpha);
     texture_info.width  = (uint32_t)w;
     texture_info.height = (uint32_t)h;
-    texture_info.format = PURRR_FORMAT_RGBA8RGB;
+    texture_info.format = PURRR_FORMAT_GRAY_ALPHA;
 
     texture = purrr_texture_create(&texture_info, renderer);
     assert(texture);
