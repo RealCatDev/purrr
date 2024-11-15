@@ -215,6 +215,8 @@ void purrr_mesh_destroy(purrr_mesh_t *mesh);
 purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t *renderer);
 void purrr_buffer_destroy(purrr_buffer_t *buffer);
 bool purrr_buffer_copy(purrr_buffer_t *buffer, void *data, uint32_t size, uint32_t offset);
+bool purrr_buffer_map(purrr_buffer_t *buffer, void **data);
+void purrr_buffer_unmap(purrr_buffer_t *buffer);
 
 // Callbacks
 typedef void (*purrr_renderer_resize_cb)(void *user_pointer);

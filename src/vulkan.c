@@ -1176,7 +1176,7 @@ bool _purrr_buffer_vulkan_init(_purrr_buffer_t *buffer) {
 
   purrr_buffer_info_t info = *buffer->info;
   {
-    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->buffer, &data->buffer_memory)) return false;
+    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->buffer, &data->buffer_memory)) return false;
   }
 
   {
@@ -1229,7 +1229,7 @@ void _purrr_buffer_vulkan_cleanup(_purrr_buffer_t *buffer) {
 }
 
 bool _purrr_buffer_vulkan_copy(_purrr_buffer_t *buffer, void *in_data, uint32_t size, uint32_t offset) {
-  if (!buffer || !buffer->initialized) return false;
+  if (!buffer || !buffer->initialized || !in_data) return false;
   assert(size <= buffer->info->size);
   _purrr_buffer_data_t *data = (_purrr_buffer_data_t*)buffer->data_ptr;
   _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)buffer->renderer->data_ptr;
@@ -1248,6 +1248,26 @@ bool _purrr_buffer_vulkan_copy(_purrr_buffer_t *buffer, void *in_data, uint32_t 
 
   vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
   vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
+  return true;
+}
+
+bool _purrr_buffer_vulkan_map(_purrr_buffer_t *buffer, void **out_data) {
+  if (!buffer || !buffer->initialized || !out_data) return false;
+  _purrr_buffer_data_t *data = (_purrr_buffer_data_t*)buffer->data_ptr;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)buffer->renderer->data_ptr;
+  if (!data || !renderer_data) return false;
+
+  return vkMapMemory(renderer_data->device, data->buffer_memory, 0, buffer->info->size, 0, out_data) == VK_SUCCESS;
+}
+
+bool _purrr_buffer_vulkan_unmap(_purrr_buffer_t *buffer) {
+  if (!buffer || !buffer->initialized) return false;
+  _purrr_buffer_data_t *data = (_purrr_buffer_data_t*)buffer->data_ptr;
+  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)buffer->renderer->data_ptr;
+  if (!data || !renderer_data) return false;
+
+  vkUnmapMemory(renderer_data->device, data->buffer_memory);
+
   return true;
 }
 

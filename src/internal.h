@@ -47,6 +47,8 @@ typedef struct _purrr_buffer_s _purrr_buffer_t;
 typedef bool (*_purrr_buffer_init_t)(_purrr_buffer_t *);
 typedef void (*_purrr_buffer_cleanup_t)(_purrr_buffer_t *);
 typedef bool (*_purrr_buffer_copy_t)(_purrr_buffer_t *, void *, uint32_t, uint32_t);
+typedef bool (*_purrr_buffer_map_t)(_purrr_buffer_t *, void **);
+typedef bool (*_purrr_buffer_unmap_t)(_purrr_buffer_t *);
 
 typedef struct _purrr_renderer_s _purrr_renderer_t;
 typedef bool (*_purrr_renderer_init_t)(_purrr_renderer_t *);
@@ -192,6 +194,8 @@ struct _purrr_buffer_s {
   _purrr_buffer_init_t init;
   _purrr_buffer_cleanup_t cleanup;
   _purrr_buffer_copy_t copy;
+  _purrr_buffer_map_t map;
+  _purrr_buffer_unmap_t unmap;
 
   void *data_ptr;
 };
@@ -201,6 +205,8 @@ void _purrr_buffer_free(_purrr_buffer_t *buffer);
 bool _purrr_buffer_vulkan_init(_purrr_buffer_t *buffer);
 void _purrr_buffer_vulkan_cleanup(_purrr_buffer_t *buffer);
 bool _purrr_buffer_vulkan_copy(_purrr_buffer_t *buffer, void *data, uint32_t size, uint32_t offset);
+bool _purrr_buffer_vulkan_map(_purrr_buffer_t *buffer, void **data);
+bool _purrr_buffer_vulkan_unmap(_purrr_buffer_t *buffer);
 
 // renderer
 

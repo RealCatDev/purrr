@@ -344,6 +344,8 @@ purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t 
     internal->init = _purrr_buffer_vulkan_init;
     internal->cleanup = _purrr_buffer_vulkan_cleanup;
     internal->copy = _purrr_buffer_vulkan_copy;
+    internal->map = _purrr_buffer_vulkan_map;
+    internal->unmap = _purrr_buffer_vulkan_unmap;
   } break;
   case COUNT_PURRR_APIS:
   default: {
@@ -370,6 +372,18 @@ bool purrr_buffer_copy(purrr_buffer_t *buffer, void *data, uint32_t size, uint32
   _purrr_buffer_t *internal = (_purrr_buffer_t*)buffer;
   assert(internal && internal->copy);
   return internal->copy(internal, data, size, offset);
+}
+
+bool purrr_buffer_map(purrr_buffer_t *buffer, void **data) {
+  _purrr_buffer_t *internal = (_purrr_buffer_t*)buffer;
+  assert(internal && internal->map);
+  return internal->map(internal, data);
+}
+
+void purrr_buffer_unmap(purrr_buffer_t *buffer) {
+  _purrr_buffer_t *internal = (_purrr_buffer_t*)buffer;
+  assert(internal && internal->unmap);
+  internal->unmap(internal);
 }
 
 // renderer
