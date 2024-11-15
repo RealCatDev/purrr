@@ -508,3 +508,54 @@ void purrr_renderer_wait(purrr_renderer_t *renderer) {
 void purrr_poll_events() {
   glfwPollEvents();
 }
+
+// Input:
+
+bool purrr_window_is_key_down(purrr_window_t *window, purrr_key_t key) {
+  _purrr_window_t *internal_window = (_purrr_window_t*)window;
+  assert(internal_window);
+  return glfwGetKey(internal_window->window, key) == GLFW_PRESS;
+}
+
+bool purrr_window_is_key_up(purrr_window_t *window, purrr_key_t key) {
+  _purrr_window_t *internal_window = (_purrr_window_t*)window;
+  assert(internal_window);
+  return glfwGetKey(internal_window->window, key) == GLFW_RELEASE;
+}
+
+bool purrr_window_is_mouse_button_down(purrr_window_t *window, purrr_mouse_button_t button) {
+  _purrr_window_t *internal_window = (_purrr_window_t*)window;
+  assert(internal_window);
+  return glfwGetMouseButton(internal_window->window, button) == GLFW_PRESS;
+}
+
+bool purrr_window_is_mouse_button_up(purrr_window_t *window, purrr_mouse_button_t button) {
+  _purrr_window_t *internal_window = (_purrr_window_t*)window;
+  assert(internal_window);
+  return glfwGetMouseButton(internal_window->window, button) == GLFW_RELEASE;
+}
+
+void purrr_window_get_cursor_pos(purrr_window_t *window, double *xpos, double *ypos) {
+  _purrr_window_t *internal_window = (_purrr_window_t*)window;
+  assert(internal_window);
+  glfwGetCursorPos(internal_window->window, xpos, ypos);
+}
+
+void purrr_window_set_cursor_mode(purrr_window_t *window, purrr_cursor_mode_t mode) {
+  _purrr_window_t *internal_window = (_purrr_window_t*)window;
+  assert(internal_window);
+  int glfw_mode = 0;
+  switch (mode) {
+  case PURRR_CURSOR_MODE_NORMAL:
+    glfw_mode = GLFW_CURSOR_NORMAL;
+    break;
+  case PURRR_CURSOR_MODE_HIDDEN:
+    glfw_mode = GLFW_CURSOR_HIDDEN;
+    break;
+  case PURRR_CURSOR_MODE_DISABLED:
+    glfw_mode = GLFW_CURSOR_DISABLED;
+    break;
+  default: assert(0 && "Unreachable");
+  }
+  glfwSetInputMode(internal_window->window, GLFW_CURSOR, glfw_mode);
+}

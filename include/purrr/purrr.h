@@ -249,6 +249,8 @@ void purrr_renderer_wait(purrr_renderer_t *renderer);
 
 void purrr_poll_events();
 
+#include "input.h"
+
 #endif // PURRR_H_
 
 /*
