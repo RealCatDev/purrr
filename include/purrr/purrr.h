@@ -147,6 +147,11 @@ typedef struct {
 } purrr_mesh_binding_info_t;
 
 typedef struct {
+  uint32_t offset;
+  uint32_t size;
+} purrr_pipeline_push_constant_t;
+
+typedef struct {
   purrr_pipeline_shader_info_t *shader_infos;
   uint32_t shader_info_count;
 
@@ -156,6 +161,9 @@ typedef struct {
   // bool depth;
   purrr_descriptor_type_t *descriptor_slots;
   uint32_t descriptor_slot_count;
+
+  purrr_pipeline_push_constant_t *push_constants;
+  uint32_t push_constant_count;
 } purrr_pipeline_info_t;
 
 typedef struct {
@@ -233,6 +241,7 @@ void purrr_renderer_begin_render_target(purrr_renderer_t *renderer, purrr_render
 void purrr_renderer_bind_pipeline(purrr_renderer_t *renderer, purrr_pipeline_t *pipeline);
 void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *texture, uint32_t slot_index);
 void purrr_renderer_bind_buffer(purrr_renderer_t *renderer, purrr_buffer_t *buffer, uint32_t slot_index);
+void purrr_renderer_push_constant(purrr_renderer_t *renderer, uint32_t offset, uint32_t size, const void *value);
 void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh);
 void purrr_renderer_end_render_target(purrr_renderer_t *renderer);
 void purrr_renderer_end_frame(purrr_renderer_t *renderer);

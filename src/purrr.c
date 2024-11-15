@@ -406,6 +406,7 @@ purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
     internal->bind_pipeline = _purrr_renderer_vulkan_bind_pipeline;
     internal->bind_texture = _purrr_renderer_vulkan_bind_texture;
     internal->bind_buffer = _purrr_renderer_vulkan_bind_buffer;
+    internal->push_constant = _purrr_renderer_vulkan_push_constant;
     internal->draw_mesh = _purrr_renderer_vulkan_draw_mesh;
     internal->end_render_target = _purrr_renderer_vulkan_end_render_target;
     internal->end_frame = _purrr_renderer_vulkan_end_frame;
@@ -472,6 +473,12 @@ void purrr_renderer_bind_buffer(purrr_renderer_t *renderer, purrr_buffer_t *buff
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
   assert(internal && internal->bind_buffer && buffer);
   assert(internal->bind_buffer(internal, (_purrr_buffer_t*)buffer, slot_index));
+}
+
+void purrr_renderer_push_constant(purrr_renderer_t *renderer, uint32_t offset, uint32_t size, const void *value) {
+  _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
+  assert(internal && internal->push_constant && value && size);
+  assert(internal->push_constant(internal, offset, size, value));
 }
 
 void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh) {

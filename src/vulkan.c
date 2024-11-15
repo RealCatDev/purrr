@@ -937,14 +937,26 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
     layouts[i] = layout;
   }
 
+  VkPushConstantRange *pc_ranges = (VkPushConstantRange*)malloc(sizeof(*pc_ranges)*pipeline->info->push_constant_count);
+  for (size_t i = 0; i < pipeline->info->push_constant_count; ++i) {
+    pc_ranges[i] = (VkPushConstantRange){
+      .stageFlags = VK_SHADER_STAGE_ALL,
+      .offset = pipeline->info->push_constants[i].offset,
+      .size = pipeline->info->push_constants[i].size,
+    };
+  }
+
   VkPipelineLayoutCreateInfo pipeline_layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     .pSetLayouts = layouts,
     .setLayoutCount = pipeline->info->descriptor_slot_count,
+    .pPushConstantRanges = pc_ranges,
+    .pushConstantRangeCount = pipeline->info->push_constant_count,
   };
 
   if (vkCreatePipelineLayout(renderer_data->device, &pipeline_layout_info, VK_NULL_HANDLE, &data->pipeline_layout) != VK_SUCCESS) return false;
 
+  free(pc_ranges);
   free(layouts);
 
   VkGraphicsPipelineCreateInfo pipeline_info = {
@@ -1872,12 +1884,26 @@ bool _purrr_renderer_vulkan_bind_buffer(_purrr_renderer_t *renderer, _purrr_buff
   return true;
 }
 
+bool _purrr_renderer_vulkan_push_constant(_purrr_renderer_t *renderer, uint32_t offset, uint32_t size, const void *value) {
+  if (!renderer || !renderer->initialized || !value || !size) return false;
+  _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
+  assert(data);
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_pipeline || !data->active_pipeline->initialized) return false;
+
+  _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
+  assert(pipeline_data);
+
+  vkCmdPushConstants(data->active_cmd_buf, pipeline_data->pipeline_layout, VK_SHADER_STAGE_ALL, offset, size, value);
+
+  return true;
+}
+
 bool _purrr_renderer_vulkan_draw_mesh(_purrr_renderer_t *renderer, _purrr_mesh_t *mesh) {
   if (!renderer || !renderer->initialized || !mesh || !mesh->initialized) return false;
   _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
   _purrr_mesh_data_t *mesh_data = (_purrr_mesh_data_t*)mesh->data_ptr;
   assert(data && mesh_data);
-  if (!data->active_cmd_buf || !data->active_render_target) return false;
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_pipeline || !data->active_pipeline->initialized) return false;
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(data->active_cmd_buf, 0, 1, &mesh_data->vertex_buffer, &offset);
