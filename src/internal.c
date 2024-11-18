@@ -10,6 +10,7 @@
 FREE_FUNC(_purrr_sampler_t, sampler)
 FREE_FUNC(_purrr_texture_t, texture)
 FREE_FUNC(_purrr_pipeline_descriptor_t, pipeline_descriptor)
+FREE_FUNC(_purrr_shader_t, shader)
 FREE_FUNC(_purrr_pipeline_t, pipeline)
 FREE_FUNC(_purrr_render_target_t, render_target)
 FREE_FUNC(_purrr_mesh_t, mesh)

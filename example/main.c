@@ -46,16 +46,19 @@ int main(void) {
   purrr_renderer_t *renderer = purrr_renderer_create(&renderer_info);
   assert(renderer);
 
-  purrr_pipeline_shader_info_t shaders[] = {
-    (purrr_pipeline_shader_info_t){
-      .buffer = "./example/vertex.spv",
-      .type = PURRR_SHADER_TYPE_VERTEX
-    },
-    (purrr_pipeline_shader_info_t){
-      .buffer = "./example/fragment.spv",
-      .type = PURRR_SHADER_TYPE_FRAGMENT
-    },
+  purrr_shader_info_t vertex_shader_info = {
+    .filename = "./vertex.spv",
+    .type = PURRR_SHADER_TYPE_VERTEX,
   };
+  purrr_shader_t *vertex_shader = purrr_shader_create(&vertex_shader_info, renderer);
+  assert(vertex_shader);
+
+  purrr_shader_info_t fragment_shader_info = {
+    .filename = "./fragment.spv",
+    .type = PURRR_SHADER_TYPE_FRAGMENT,
+  };
+  purrr_shader_t *fragment_shader = purrr_shader_create(&fragment_shader_info, renderer);
+  assert(fragment_shader);
 
   purrr_vertex_info_t vertex_infos[] = {
     (purrr_vertex_info_t){
@@ -71,8 +74,8 @@ int main(void) {
   };
 
   purrr_pipeline_info_t pipeline_info = {
-    .shader_infos = shaders,
-    .shader_info_count = 2,
+    .shaders = (purrr_shader_t*[]){ vertex_shader, fragment_shader },
+    .shader_count = 2,
     .pipeline_descriptor = renderer_info.swapchain_pipeline_descriptor,
     .mesh_info = (purrr_mesh_binding_info_t){
       .vertex_infos = vertex_infos,
@@ -113,7 +116,7 @@ int main(void) {
   purrr_texture_t *texture = NULL;
   {
     int w, h, c;
-    stbi_uc *pixels = stbi_load("./example/chp.png", &w, &h, &c, STBI_grey_alpha);
+    stbi_uc *pixels = stbi_load("./chp.png", &w, &h, &c, STBI_grey_alpha);
     texture_info.width  = (uint32_t)w;
     texture_info.height = (uint32_t)h;
     texture_info.format = PURRR_FORMAT_GRAY_ALPHA;
@@ -160,8 +163,8 @@ int main(void) {
   assert(offscreen_render_target);
 
   purrr_pipeline_info_t offscreen_pipeline_info = {
-    .shader_infos = shaders,
-    .shader_info_count = 2,
+    .shaders = (purrr_shader_t*[]){ vertex_shader, fragment_shader },
+    .shader_count = 2,
     .pipeline_descriptor = offscreen_pipeline_descriptor,
     .mesh_info = (purrr_mesh_binding_info_t){
       .vertex_infos = vertex_infos,
@@ -173,6 +176,9 @@ int main(void) {
 
   purrr_pipeline_t *offscreen_pipeline = purrr_pipeline_create(&offscreen_pipeline_info, renderer);
   assert(offscreen_pipeline);
+
+  purrr_shader_destroy(vertex_shader);
+  purrr_shader_destroy(fragment_shader);
 
   purrr_renderer_set_user_data(renderer, window);
   purrr_renderer_set_resize_callback(renderer, resize);

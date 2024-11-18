@@ -2,4 +2,5 @@ build*
 .vscode/
 *.spv
 *.exe*
+*.cap
 old/

@@ -30,6 +30,10 @@ typedef struct _purrr_pipeline_descriptor_s _purrr_pipeline_descriptor_t;
 typedef bool (*_purrr_pipeline_descriptor_init_t)(_purrr_pipeline_descriptor_t *);
 typedef void (*_purrr_pipeline_descriptor_cleanup_t)(_purrr_pipeline_descriptor_t *);
 
+typedef struct _purrr_shader_s _purrr_shader_t;
+typedef bool (*_purrr_shader_init_t)(_purrr_shader_t *);
+typedef void (*_purrr_shader_cleanup_t)(_purrr_shader_t *);
+
 typedef struct _purrr_pipeline_s _purrr_pipeline_t;
 typedef bool (*_purrr_pipeline_init_t)(_purrr_pipeline_t *);
 typedef void (*_purrr_pipeline_cleanup_t)(_purrr_pipeline_t *);
@@ -123,6 +127,26 @@ void _purrr_pipeline_descriptor_free(_purrr_pipeline_descriptor_t *pipeline_desc
 
 bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeline_descriptor);
 void _purrr_pipeline_descriptor_vulkan_cleanup(_purrr_pipeline_descriptor_t *pipeline_descriptor);
+
+// shader
+
+struct _purrr_shader_s {
+  bool initialized;
+  _purrr_renderer_t *renderer;
+  purrr_shader_info_t *info;
+
+  purrr_shader_type_t type;
+
+  _purrr_shader_init_t init;
+  _purrr_shader_cleanup_t cleanup;
+
+  void *data_ptr;
+};
+
+void _purrr_shader_free(_purrr_shader_t *shader);
+
+bool _purrr_shader_vulkan_init(_purrr_shader_t *shader);
+void _purrr_shader_vulkan_cleanup(_purrr_shader_t *shader);
 
 // pipeline
 
