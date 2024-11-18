@@ -200,13 +200,49 @@ void purrr_pipeline_descriptor_destroy(purrr_pipeline_descriptor_t *pipeline_des
   if (pipeline_descriptor) _purrr_pipeline_descriptor_free((_purrr_pipeline_descriptor_t*)pipeline_descriptor);
 }
 
+// shader
+
+purrr_shader_t *purrr_shader_create(purrr_shader_info_t *info, purrr_renderer_t *renderer) {
+  if (!info || info->type >= COUNT_PURRR_SHADER_TYPES || (!info->filename && !info->buffer)) return NULL;
+
+  _purrr_shader_t *internal = (_purrr_shader_t*)malloc(sizeof(*internal));
+  if (!internal) return NULL;
+  memset(internal, 0, sizeof(*internal));
+  internal->info = info;
+  internal->renderer = (_purrr_renderer_t*)renderer;
+
+  switch (((_purrr_renderer_t*)renderer)->api) {
+  case PURRR_API_VULKAN: {
+    internal->init = _purrr_shader_vulkan_init;
+    internal->cleanup = _purrr_shader_vulkan_cleanup;
+  } break;
+  default: {
+    assert(0 && "Unreachable");
+    return NULL;
+  }
+  }
+
+  if (!internal->init(internal)) {
+    _purrr_shader_free(internal);
+    return NULL;
+  }
+
+  internal->initialized = true;
+
+  return (purrr_shader_t*)internal;
+}
+
+void purrr_shader_destroy(purrr_shader_t *shader) {
+
+}
+
 // pipeline
 
 purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_renderer_t *renderer) {
   if (!info || !renderer ||
       !info->pipeline_descriptor ||
       (info->descriptor_slot_count > 0 && !info->descriptor_slots) ||
-      (info->shader_info_count > 0 && !info->shader_infos))
+      (info->shader_count > 0 && !info->shaders))
     return NULL;
 
   _purrr_pipeline_t *internal = (_purrr_pipeline_t*)malloc(sizeof(*internal));

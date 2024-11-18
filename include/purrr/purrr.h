@@ -24,6 +24,7 @@ typedef struct purrr_sampler_s purrr_sampler_t;
 typedef struct purrr_texture_s purrr_texture_t;
 typedef struct purrr_pipeline_descriptor_s purrr_pipeline_descriptor_t;
 typedef struct purrr_render_target_s purrr_render_target_t;
+typedef struct purrr_shader_s purrr_shader_t;
 typedef struct purrr_pipeline_s purrr_pipeline_t;
 typedef struct purrr_mesh_s purrr_mesh_t;
 typedef struct purrr_buffer_s purrr_buffer_t;
@@ -130,12 +131,6 @@ typedef struct {
 } purrr_render_target_info_t;
 
 typedef struct {
-  char *buffer;
-  size_t size; // if 0, load buffer from file `buffer`
-  purrr_shader_type_t type;
-} purrr_pipeline_shader_info_t;
-
-typedef struct {
   purrr_format_t format;
   uint32_t size;
   uint32_t offset;
@@ -151,9 +146,17 @@ typedef struct {
   uint32_t size;
 } purrr_pipeline_push_constant_t;
 
+// If filename is not null load from file, else load from buffer.
 typedef struct {
-  purrr_pipeline_shader_info_t *shader_infos;
-  uint32_t shader_info_count;
+  purrr_shader_type_t type;
+  const char *filename;
+  char *buffer;
+  size_t buffer_size;
+} purrr_shader_info_t;
+
+typedef struct {
+  purrr_shader_t **shaders;
+  uint32_t shader_count;
 
   purrr_mesh_binding_info_t mesh_info;
 
@@ -213,6 +216,9 @@ void purrr_pipeline_descriptor_destroy(purrr_pipeline_descriptor_t *pipeline_des
 purrr_render_target_t *purrr_render_target_create(purrr_render_target_info_t *info, purrr_renderer_t *renderer);
 purrr_texture_t *purrr_render_target_get_texture(purrr_render_target_t *render_target, uint32_t texture_index);
 void purrr_render_target_destroy(purrr_render_target_t *render_target);
+
+purrr_shader_t *purrr_shader_create(purrr_shader_info_t *info, purrr_renderer_t *renderer);
+void purrr_shader_destroy(purrr_shader_t *shader);
 
 purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_renderer_t *renderer);
 void purrr_pipeline_destroy(purrr_pipeline_t *pipeline);
