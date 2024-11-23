@@ -744,6 +744,7 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
   }
 
   pipeline_descriptor->data_ptr = data;
+  pipeline_descriptor->initialized = true;
 
   return true;
 error:
@@ -773,6 +774,7 @@ bool _purrr_shader_vulkan_init(_purrr_shader_t *shader) {
   memset(data, 0, sizeof(*data));
 
   if (shader->info->filename) {
+    if (shader->info->buffer) free(shader->info->buffer);
     FILE *fd = fopen(shader->info->filename, "rb");
     if (!fd) return VK_NULL_HANDLE;
     fseek(fd, 0, SEEK_END);
@@ -785,9 +787,8 @@ bool _purrr_shader_vulkan_init(_purrr_shader_t *shader) {
       free(shader->info->buffer);
       return false;
     }
+    fclose(fd);
   }
-
-  VkShaderModule shader_module = VK_NULL_HANDLE;
 
   VkShaderModuleCreateInfo create_info = {
     .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -795,7 +796,10 @@ bool _purrr_shader_vulkan_init(_purrr_shader_t *shader) {
     .pCode = (const uint32_t*)shader->info->buffer,
   };
 
-  vkCreateShaderModule(renderer_data->device, &create_info, VK_NULL_HANDLE, &data->shader_module);
+  VkResult result = vkCreateShaderModule(renderer_data->device, &create_info, VK_NULL_HANDLE, &data->shader_module);
+  if (result != VK_SUCCESS) {
+    assert(false);
+  }
 
   if (shader->info->filename) free(shader->info->buffer);
 
@@ -827,18 +831,15 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
   assert(data && renderer_data && pipeline_descriptor_data);
   memset(data, 0, sizeof(*data));
 
-  VkShaderModule *shader_modules = (VkShaderModule*)malloc(sizeof(*shader_modules)*pipeline->info->shader_count);
   VkPipelineShaderStageCreateInfo *stage_infos = (VkPipelineShaderStageCreateInfo*)malloc(sizeof(*stage_infos)*pipeline->info->shader_count);
   for (uint32_t i = 0; i < pipeline->info->shader_count; ++i) {
     _purrr_shader_t *shader = (_purrr_shader_t*)pipeline->info->shaders[i];
     assert(shader->initialized);
-    shader_modules[i] = ((_purrr_shader_data_t*)shader->data_ptr)->shader_module;
-    assert(shader_modules[i]);
 
     stage_infos[i] = (VkPipelineShaderStageCreateInfo){
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       .stage = vk_shader_stage(shader->type),
-      .module = shader_modules[i],
+      .module = ((_purrr_shader_data_t*)shader->data_ptr)->shader_module,
       .pName = "main",
     };
   }
@@ -1003,6 +1004,8 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
   if (((_purrr_pipeline_descriptor_t*)pipeline->info->pipeline_descriptor)->info->depth_attachment) pipeline_info.pDepthStencilState = &depth_stencil;
 
   if (vkCreateGraphicsPipelines(renderer_data->device, VK_NULL_HANDLE, 1, &pipeline_info, VK_NULL_HANDLE, &data->pipeline) != VK_SUCCESS) return false;
+
+  free(stage_infos);
 
   pipeline->data_ptr = data;
   pipeline->initialized = true;
