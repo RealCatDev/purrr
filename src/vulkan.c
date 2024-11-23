@@ -1114,74 +1114,6 @@ _purrr_texture_t *_purrr_render_target_vulkan_get_texture(_purrr_render_target_t
   return render_target->textures[texture_index];
 }
 
-// mesh
-
-bool _purrr_mesh_vulkan_init(_purrr_mesh_t *mesh) {
-  if (!mesh) return false;
-  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)mesh->renderer->data_ptr;
-  _purrr_mesh_data_t *data = (_purrr_mesh_data_t*)malloc(sizeof(*data));
-  assert(data && renderer_data);
-  memset(data, 0, sizeof(*data));
-
-  {
-    VkDeviceSize buffer_size = mesh->info->vertices_size;
-    VkBuffer staging_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory staging_buffer_memory = VK_NULL_HANDLE;
-
-    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &staging_buffer, &staging_buffer_memory)) return false;
-
-    void *buffer_data;
-    vkMapMemory(renderer_data->device, staging_buffer_memory, 0, buffer_size, 0, &buffer_data);
-      memcpy(buffer_data, mesh->info->vertices, (size_t)buffer_size);
-    vkUnmapMemory(renderer_data->device, staging_buffer_memory);
-
-    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->vertex_buffer, &data->vertex_buffer_memory)) return false;
-
-    _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->vertex_buffer, buffer_size, 0);
-
-    vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
-    vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
-  }
-
-  {
-    VkDeviceSize buffer_size = mesh->info->indices_size;
-    VkBuffer staging_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory staging_buffer_memory = VK_NULL_HANDLE;
-
-    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &staging_buffer, &staging_buffer_memory)) return false;
-
-    void *buffer_data;
-    vkMapMemory(renderer_data->device, staging_buffer_memory, 0, buffer_size, 0, &buffer_data);
-      memcpy(buffer_data, mesh->info->indices, (size_t)buffer_size);
-    vkUnmapMemory(renderer_data->device, staging_buffer_memory);
-
-    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->index_buffer, &data->index_buffer_memory)) return false;
-
-    _purrr_renderer_vulkan_copy_buffer(renderer_data, staging_buffer, data->index_buffer, buffer_size, 0);
-
-    vkDestroyBuffer(renderer_data->device, staging_buffer, VK_NULL_HANDLE);
-    vkFreeMemory(renderer_data->device, staging_buffer_memory, VK_NULL_HANDLE);
-  }
-
-  mesh->data_ptr = data;
-
-  return true;
-}
-
-void _purrr_mesh_vulkan_cleanup(_purrr_mesh_t *mesh) {
-  _purrr_mesh_data_t *data = (_purrr_mesh_data_t*)mesh->data_ptr;
-  _purrr_renderer_data_t *renderer_data = (_purrr_renderer_data_t*)mesh->renderer->data_ptr;
-  if (!data || !renderer_data) return;
-  if (mesh->initialized) {
-    vkDestroyBuffer(renderer_data->device, data->vertex_buffer, VK_NULL_HANDLE);
-    vkFreeMemory(renderer_data->device, data->vertex_buffer_memory, VK_NULL_HANDLE);
-    vkDestroyBuffer(renderer_data->device, data->index_buffer, VK_NULL_HANDLE);
-    vkFreeMemory(renderer_data->device, data->index_buffer_memory, VK_NULL_HANDLE);
-  }
-  free(data);
-  mesh->initialized = false;
-}
-
 // buffer
 
 bool _purrr_buffer_vulkan_init(_purrr_buffer_t *buffer) {
@@ -1202,6 +1134,12 @@ bool _purrr_buffer_vulkan_init(_purrr_buffer_t *buffer) {
     usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     layout = renderer_data->storage_descriptor_set_layout;
     break;
+  case PURRR_BUFFER_TYPE_VERTEX:
+    usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    break;
+  case PURRR_BUFFER_TYPE_INDEX:
+    usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    break;
   case COUNT_PURRR_BUFFER_TYPES:
   default: {
     assert(0 && "Unreachable");
@@ -1210,41 +1148,38 @@ bool _purrr_buffer_vulkan_init(_purrr_buffer_t *buffer) {
   }
 
   purrr_buffer_info_t info = *buffer->info;
-  {
-    if (!_purrr_renderer_vulkan_create_buffer(renderer_data, info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->buffer, &data->buffer_memory)) return false;
-  }
+  if (!_purrr_renderer_vulkan_create_buffer(renderer_data, info.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &data->buffer, &data->buffer_memory)) return false;
 
-  {
-    VkDescriptorSetAllocateInfo alloc_info = {
-      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-      .descriptorPool = renderer_data->descriptor_pool,
-      .descriptorSetCount = 1,
-      .pSetLayouts = &layout,
-    };
+  if (!layout) goto defer;
 
-    if (vkAllocateDescriptorSets(renderer_data->device, &alloc_info, &data->set) != VK_SUCCESS) return false;
-  }
+  VkDescriptorSetAllocateInfo alloc_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = renderer_data->descriptor_pool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &layout,
+  };
 
-  {
-    VkDescriptorBufferInfo buffer_info = {
-      .buffer = data->buffer,
-      .offset = 0,
-      .range = buffer->info->size,
-    };
+  if (vkAllocateDescriptorSets(renderer_data->device, &alloc_info, &data->set) != VK_SUCCESS) return false;
 
-    VkWriteDescriptorSet descriptor_write = {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = data->set,
-      .dstBinding = 0,
-      .dstArrayElement = 0,
-      .descriptorType = vk_descriptor_type(buffer->info->type),
-      .descriptorCount = 1,
-      .pBufferInfo = &buffer_info,
-    };
+  VkDescriptorBufferInfo buffer_info = {
+    .buffer = data->buffer,
+    .offset = 0,
+    .range = buffer->info->size,
+  };
 
-    vkUpdateDescriptorSets(renderer_data->device, (uint32_t)1, &descriptor_write, 0, VK_NULL_HANDLE);
-  }
+  VkWriteDescriptorSet descriptor_write = {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = data->set,
+    .dstBinding = 0,
+    .dstArrayElement = 0,
+    .descriptorType = vk_descriptor_type(buffer->info->type),
+    .descriptorCount = 1,
+    .pBufferInfo = &buffer_info,
+  };
 
+  vkUpdateDescriptorSets(renderer_data->device, (uint32_t)1, &descriptor_write, 0, VK_NULL_HANDLE);
+
+defer:
   buffer->data_ptr = data;
 
   return true;
@@ -1898,11 +1833,26 @@ bool _purrr_renderer_vulkan_bind_buffer(_purrr_renderer_t *renderer, _purrr_buff
   _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
   _purrr_buffer_data_t *buffer_data = (_purrr_buffer_data_t*)buffer->data_ptr;
   assert(data && buffer_data);
-  if (!data->active_cmd_buf || !data->active_render_target || !data->active_render_target->initialized || !data->active_pipeline || !data->active_pipeline->initialized || slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
-  _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
-  assert(pipeline_data);
+  assert(buffer->info->type < COUNT_PURRR_BUFFER_TYPES);
 
-  vkCmdBindDescriptorSets(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline_layout, slot_index, 1, &buffer_data->set, 0, NULL);
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_render_target->initialized || !data->active_pipeline || !data->active_pipeline->initialized || slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
+
+  switch (buffer->info->type) {
+  case PURRR_BUFFER_TYPE_UNIFORM:
+  case PURRR_BUFFER_TYPE_STORAGE: {
+    _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
+    assert(pipeline_data);
+
+    vkCmdBindDescriptorSets(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline_layout, slot_index, 1, &buffer_data->set, 0, NULL);
+  } break;
+  case PURRR_BUFFER_TYPE_VERTEX: {
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(data->active_cmd_buf, slot_index, 1, &buffer_data->buffer, &offset);
+  } break;
+  case PURRR_BUFFER_TYPE_INDEX: {
+    vkCmdBindIndexBuffer(data->active_cmd_buf, buffer_data->buffer, 0, VK_INDEX_TYPE_UINT32);
+  } break;
+  }
 
   return true;
 }
@@ -1921,19 +1871,21 @@ bool _purrr_renderer_vulkan_push_constant(_purrr_renderer_t *renderer, uint32_t 
   return true;
 }
 
-bool _purrr_renderer_vulkan_draw_mesh(_purrr_renderer_t *renderer, _purrr_mesh_t *mesh) {
-  if (!renderer || !renderer->initialized || !mesh || !mesh->initialized) return false;
+bool _purrr_renderer_vulkan_draw(_purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t vertex_count, uint32_t first_vertex) {
+  if (!renderer || !renderer->initialized) return false;
   _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
-  _purrr_mesh_data_t *mesh_data = (_purrr_mesh_data_t*)mesh->data_ptr;
-  assert(data && mesh_data);
+  assert(data);
   if (!data->active_cmd_buf || !data->active_render_target || !data->active_pipeline || !data->active_pipeline->initialized) return false;
+  vkCmdDraw(data->active_cmd_buf, vertex_count, instance_count, first_vertex, first_instance);
+  return true;
+}
 
-  VkDeviceSize offset = 0;
-  vkCmdBindVertexBuffers(data->active_cmd_buf, 0, 1, &mesh_data->vertex_buffer, &offset);
-  vkCmdBindIndexBuffer(data->active_cmd_buf, mesh_data->index_buffer, 0, VK_INDEX_TYPE_UINT32);
-
-  vkCmdDrawIndexed(data->active_cmd_buf, (uint32_t)mesh->info->index_count, 1, 0, 0, 0);
-
+bool _purrr_renderer_vulkan_draw_indexed(_purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t index_count, uint32_t first_index, int32_t vertex_offset) {
+  if (!renderer || !renderer->initialized) return false;
+  _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
+  assert(data);
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_pipeline || !data->active_pipeline->initialized) return false;
+  vkCmdDrawIndexed(data->active_cmd_buf, index_count, instance_count, first_index, first_instance, vertex_offset);
   return true;
 }
 

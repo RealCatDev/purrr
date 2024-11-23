@@ -26,7 +26,6 @@ typedef struct purrr_pipeline_descriptor_s purrr_pipeline_descriptor_t;
 typedef struct purrr_render_target_s purrr_render_target_t;
 typedef struct purrr_shader_s purrr_shader_t;
 typedef struct purrr_pipeline_s purrr_pipeline_t;
-typedef struct purrr_mesh_s purrr_mesh_t;
 typedef struct purrr_buffer_s purrr_buffer_t;
 
 // Enums
@@ -85,6 +84,8 @@ typedef enum {
 typedef enum {
   PURRR_BUFFER_TYPE_UNIFORM = 0,
   PURRR_BUFFER_TYPE_STORAGE,
+  PURRR_BUFFER_TYPE_VERTEX,
+  PURRR_BUFFER_TYPE_INDEX,
   COUNT_PURRR_BUFFER_TYPES
 } purrr_buffer_type_t;
 
@@ -170,14 +171,6 @@ typedef struct {
 } purrr_pipeline_info_t;
 
 typedef struct {
-  void     *vertices;
-  uint32_t  vertices_size;
-  uint32_t *indices;
-  uint32_t  indices_size;
-  uint32_t  index_count;
-} purrr_mesh_info_t;
-
-typedef struct {
   purrr_buffer_type_t type;
   uint32_t size;
 } purrr_buffer_info_t;
@@ -223,9 +216,6 @@ void purrr_shader_destroy(purrr_shader_t *shader);
 purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_renderer_t *renderer);
 void purrr_pipeline_destroy(purrr_pipeline_t *pipeline);
 
-purrr_mesh_t *purrr_mesh_create(purrr_mesh_info_t *info, purrr_renderer_t *renderer);
-void purrr_mesh_destroy(purrr_mesh_t *mesh);
-
 purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t *renderer);
 void purrr_buffer_destroy(purrr_buffer_t *buffer);
 bool purrr_buffer_copy(purrr_buffer_t *buffer, void *data, uint32_t size, uint32_t offset);
@@ -248,7 +238,10 @@ void purrr_renderer_bind_pipeline(purrr_renderer_t *renderer, purrr_pipeline_t *
 void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *texture, uint32_t slot_index);
 void purrr_renderer_bind_buffer(purrr_renderer_t *renderer, purrr_buffer_t *buffer, uint32_t slot_index);
 void purrr_renderer_push_constant(purrr_renderer_t *renderer, uint32_t offset, uint32_t size, const void *value);
-void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh);
+
+void purrr_renderer_draw(purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t vertex_count, uint32_t first_vertex);
+void purrr_renderer_draw_indexed(purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t index_count, uint32_t first_index, int32_t vertex_offset);
+
 void purrr_renderer_end_render_target(purrr_renderer_t *renderer);
 void purrr_renderer_end_frame(purrr_renderer_t *renderer);
 void purrr_renderer_wait(purrr_renderer_t *renderer);

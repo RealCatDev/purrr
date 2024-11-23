@@ -21,9 +21,16 @@ static vertex_t gVertices[] = {
   { { -1.0f,  1.0f, 0.0f }, { 0.0f, 1.0f }, },
 };
 
-void resize(void *data) {
-  (void)data;
-}
+static struct {
+  purrr_buffer_info_t vertex_buffer_info;
+  purrr_buffer_t *vertex_buffer;
+  purrr_buffer_info_t index_buffer_info;
+  purrr_buffer_t *index_buffer;
+  uint32_t index_count;
+} s_mesh;
+
+void initialize_mesh(purrr_renderer_t *);
+void cleanup_mesh();
 
 int main(void) {
   purrr_window_info_t window_info = {
@@ -88,16 +95,8 @@ int main(void) {
   purrr_pipeline_t *pipeline = purrr_pipeline_create(&pipeline_info, renderer);
   assert(pipeline);
 
-  purrr_mesh_info_t mesh_info = {
-    .index_count = 6,
-    .indices_size = sizeof(gIndices),
-    .indices = gIndices,
-    .vertices_size = sizeof(gVertices),
-    .vertices = gVertices,
-  };
-
-  purrr_mesh_t *mesh = purrr_mesh_create(&mesh_info, renderer);
-
+  initialize_mesh(renderer);
+  
   purrr_sampler_info_t sampler_info = {
     .mag_filter = PURRR_SAMPLER_FILTER_LINEAR,
     .min_filter = PURRR_SAMPLER_FILTER_LINEAR,
@@ -180,18 +179,17 @@ int main(void) {
   purrr_shader_destroy(vertex_shader);
   purrr_shader_destroy(fragment_shader);
 
-  purrr_renderer_set_user_data(renderer, window);
-  purrr_renderer_set_resize_callback(renderer, resize);
-
-  resize(window);
-
   while (!purrr_window_should_close(window)) {
     purrr_renderer_begin_frame(renderer);
 
     purrr_renderer_begin_render_target(renderer, offscreen_render_target);
     purrr_renderer_bind_pipeline(renderer, offscreen_pipeline);
     purrr_renderer_bind_texture(renderer, texture, 0);
-    purrr_renderer_draw_mesh(renderer, mesh);
+
+    purrr_renderer_bind_buffer(renderer, s_mesh.vertex_buffer, 0);
+    purrr_renderer_bind_buffer(renderer, s_mesh.index_buffer, 0);
+    purrr_renderer_draw_indexed(renderer, 1, 0, s_mesh.index_count, 0, 0);
+    
     purrr_renderer_end_render_target(renderer);
 
     purrr_renderer_begin_render_target(renderer, renderer_info.swapchain_render_target);
@@ -199,7 +197,11 @@ int main(void) {
     purrr_texture_t *offscreen_texture = purrr_render_target_get_texture(offscreen_render_target, 0);
     assert(offscreen_texture);
     purrr_renderer_bind_texture(renderer, offscreen_texture, 0);
-    purrr_renderer_draw_mesh(renderer, mesh);
+    
+    // purrr_renderer_bind_buffer(renderer, s_mesh.vertex_buffer, 0);
+    // purrr_renderer_bind_buffer(renderer, s_mesh.index_buffer, 0);
+    purrr_renderer_draw_indexed(renderer, 1, 0, s_mesh.index_count, 0, 0);
+
     purrr_renderer_end_render_target(renderer);
 
     purrr_renderer_end_frame(renderer);
@@ -210,7 +212,7 @@ int main(void) {
   purrr_pipeline_destroy(offscreen_pipeline);
   purrr_pipeline_descriptor_destroy(offscreen_pipeline_descriptor);
   purrr_render_target_destroy(offscreen_render_target);
-  purrr_mesh_destroy(mesh);
+  cleanup_mesh();
   purrr_sampler_destroy(sampler);
   purrr_texture_destroy(texture);
   purrr_pipeline_destroy(pipeline);
@@ -218,4 +220,26 @@ int main(void) {
   purrr_window_destroy(window);
 
   return 0;
+}
+
+void initialize_mesh(purrr_renderer_t *renderer) {
+  s_mesh.vertex_buffer_info = (purrr_buffer_info_t){
+    .type = PURRR_BUFFER_TYPE_VERTEX,
+    .size = sizeof(gVertices),
+  };
+  s_mesh.vertex_buffer = purrr_buffer_create(&s_mesh.vertex_buffer_info, renderer);
+  assert(purrr_buffer_copy(s_mesh.vertex_buffer, gVertices, sizeof(gVertices), 0));
+
+  s_mesh.index_buffer_info = (purrr_buffer_info_t){
+    .type = PURRR_BUFFER_TYPE_INDEX,
+    .size = sizeof(gIndices),
+  };
+  s_mesh.index_buffer = purrr_buffer_create(&s_mesh.index_buffer_info, renderer);
+  assert(purrr_buffer_copy(s_mesh.index_buffer, gIndices, sizeof(gIndices), 0));
+  s_mesh.index_count = sizeof(gIndices)/sizeof(gIndices[0]);
+}
+
+void cleanup_mesh() {
+  purrr_buffer_destroy(s_mesh.vertex_buffer);
+  purrr_buffer_destroy(s_mesh.index_buffer);
 }

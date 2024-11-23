@@ -325,45 +325,6 @@ void purrr_render_target_destroy(purrr_render_target_t *render_target) {
   if (render_target) _purrr_render_target_free((_purrr_render_target_t*)render_target);
 }
 
-// mesh
-
-purrr_mesh_t *purrr_mesh_create(purrr_mesh_info_t *info, purrr_renderer_t *renderer) {
-  if (!info ||
-      !info->indices_size || !info->indices ||
-      !info->vertices_size || !info->vertices) return NULL;
-
-  _purrr_mesh_t *internal = (_purrr_mesh_t*)malloc(sizeof(*internal));
-  if (!internal) return NULL;
-  memset(internal, 0, sizeof(*internal));
-  internal->info = info;
-  internal->renderer = (_purrr_renderer_t*)renderer;
-
-  switch (internal->renderer->api) {
-  case PURRR_API_VULKAN: {
-    internal->init = _purrr_mesh_vulkan_init;
-    internal->cleanup = _purrr_mesh_vulkan_cleanup;
-  } break;
-  case COUNT_PURRR_APIS:
-  default: {
-    assert(0 && "Unreachable");
-    return NULL;
-  }
-  }
-
-  if (!internal->init(internal)) {
-    _purrr_mesh_free(internal);
-    return NULL;
-  }
-
-  internal->initialized = true;
-
-  return (purrr_mesh_t*)internal;
-}
-
-void purrr_mesh_destroy(purrr_mesh_t *mesh) {
-  if (mesh) _purrr_mesh_free((_purrr_mesh_t*)mesh);
-}
-
 // buffer
 
 purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t *renderer) {
@@ -443,7 +404,8 @@ purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
     internal->bind_texture = _purrr_renderer_vulkan_bind_texture;
     internal->bind_buffer = _purrr_renderer_vulkan_bind_buffer;
     internal->push_constant = _purrr_renderer_vulkan_push_constant;
-    internal->draw_mesh = _purrr_renderer_vulkan_draw_mesh;
+    internal->draw = _purrr_renderer_vulkan_draw;
+    internal->draw_indexed = _purrr_renderer_vulkan_draw_indexed;
     internal->end_render_target = _purrr_renderer_vulkan_end_render_target;
     internal->end_frame = _purrr_renderer_vulkan_end_frame;
     internal->wait = _purrr_renderer_vulkan_wait;
@@ -517,10 +479,16 @@ void purrr_renderer_push_constant(purrr_renderer_t *renderer, uint32_t offset, u
   assert(internal->push_constant(internal, offset, size, value));
 }
 
-void purrr_renderer_draw_mesh(purrr_renderer_t *renderer, purrr_mesh_t *mesh) {
+void purrr_renderer_draw(purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t vertex_count, uint32_t first_vertex) {
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
-  assert(internal && internal->draw_mesh && mesh);
-  assert(internal->draw_mesh(internal, (_purrr_mesh_t*)mesh));
+  assert(internal && internal->draw);
+  assert(internal->draw(internal, instance_count, first_instance, vertex_count, first_vertex));
+}
+
+void purrr_renderer_draw_indexed(purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t index_count, uint32_t first_index, int32_t vertex_offset) {
+  _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
+  assert(internal && internal->draw_indexed);
+  assert(internal->draw_indexed(internal, instance_count, first_instance, index_count, first_index, vertex_offset));
 }
 
 void purrr_renderer_end_render_target(purrr_renderer_t *renderer) {

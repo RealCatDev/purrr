@@ -43,10 +43,6 @@ typedef bool (*_purrr_render_target_init_t)(_purrr_render_target_t *);
 typedef void (*_purrr_render_target_cleanup_t)(_purrr_render_target_t *);
 typedef _purrr_texture_t *(*_purrr_render_target_get_texture_t)(_purrr_render_target_t *, uint32_t);
 
-typedef struct _purrr_mesh_s _purrr_mesh_t;
-typedef bool (*_purrr_mesh_init_t)(_purrr_mesh_t *);
-typedef void (*_purrr_mesh_cleanup_t)(_purrr_mesh_t *);
-
 typedef struct _purrr_buffer_s _purrr_buffer_t;
 typedef bool (*_purrr_buffer_init_t)(_purrr_buffer_t *);
 typedef void (*_purrr_buffer_cleanup_t)(_purrr_buffer_t *);
@@ -63,7 +59,8 @@ typedef bool (*_purrr_renderer_bind_pipeline_t)(_purrr_renderer_t *, _purrr_pipe
 typedef bool (*_purrr_renderer_bind_texture_t)(_purrr_renderer_t *, _purrr_texture_t *, uint32_t);
 typedef bool (*_purrr_renderer_bind_buffer_t)(_purrr_renderer_t *, _purrr_buffer_t *, uint32_t);
 typedef bool (*_purrr_renderer_push_constant_t)(_purrr_renderer_t *, uint32_t, uint32_t, const void *);
-typedef bool (*_purrr_renderer_draw_mesh_t)(_purrr_renderer_t *, _purrr_mesh_t *);
+typedef bool (*_purrr_renderer_draw_t)(_purrr_renderer_t *, uint32_t, uint32_t, uint32_t, uint32_t);
+typedef bool (*_purrr_renderer_draw_indexed_t)(_purrr_renderer_t *, uint32_t, uint32_t, uint32_t, uint32_t, int32_t);
 typedef bool (*_purrr_renderer_end_render_target_t)(_purrr_renderer_t *);
 typedef bool (*_purrr_renderer_end_frame_t)(_purrr_renderer_t *);
 typedef bool (*_purrr_renderer_wait_t)(_purrr_renderer_t *);
@@ -191,24 +188,6 @@ bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target);
 void _purrr_render_target_vulkan_cleanup(_purrr_render_target_t *render_target);
 _purrr_texture_t *_purrr_render_target_vulkan_get_texture(_purrr_render_target_t *render_target, uint32_t texture_index);
 
-// mesh
-
-struct _purrr_mesh_s {
-  bool initialized;
-  _purrr_renderer_t *renderer;
-  purrr_mesh_info_t *info;
-
-  _purrr_mesh_init_t init;
-  _purrr_mesh_cleanup_t cleanup;
-
-  void *data_ptr;
-};
-
-void _purrr_mesh_free(_purrr_mesh_t *mesh);
-
-bool _purrr_mesh_vulkan_init(_purrr_mesh_t *mesh);
-void _purrr_mesh_vulkan_cleanup(_purrr_mesh_t *mesh);
-
 // buffer
 
 struct _purrr_buffer_s {
@@ -248,7 +227,8 @@ struct _purrr_renderer_s {
   _purrr_renderer_bind_texture_t bind_texture;
   _purrr_renderer_bind_buffer_t bind_buffer;
   _purrr_renderer_push_constant_t push_constant;
-  _purrr_renderer_draw_mesh_t draw_mesh;
+  _purrr_renderer_draw_t draw;
+  _purrr_renderer_draw_indexed_t draw_indexed;
   _purrr_renderer_end_render_target_t end_render_target;
   _purrr_renderer_end_frame_t end_frame;
   _purrr_renderer_wait_t wait;
@@ -271,7 +251,8 @@ bool _purrr_renderer_vulkan_bind_pipeline(_purrr_renderer_t *renderer, _purrr_pi
 bool _purrr_renderer_vulkan_bind_texture(_purrr_renderer_t *renderer, _purrr_texture_t *texture, uint32_t slot_index);
 bool _purrr_renderer_vulkan_bind_buffer(_purrr_renderer_t *renderer, _purrr_buffer_t *buffer, uint32_t slot_index);
 bool _purrr_renderer_vulkan_push_constant(_purrr_renderer_t *renderer, uint32_t offset, uint32_t size, const void *value);
-bool _purrr_renderer_vulkan_draw_mesh(_purrr_renderer_t *renderer, _purrr_mesh_t *mesh);
+bool _purrr_renderer_vulkan_draw(_purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t vertex_count, uint32_t first_vertex);
+bool _purrr_renderer_vulkan_draw_indexed(_purrr_renderer_t *renderer, uint32_t instance_count, uint32_t first_instance, uint32_t index_count, uint32_t first_index, int32_t vertex_offset);
 bool _purrr_renderer_vulkan_end_render_target(_purrr_renderer_t *renderer);
 bool _purrr_renderer_vulkan_end_frame(_purrr_renderer_t *renderer);
 bool _purrr_renderer_vulkan_wait(_purrr_renderer_t *renderer);
