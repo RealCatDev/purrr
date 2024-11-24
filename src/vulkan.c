@@ -1838,17 +1838,19 @@ bool _purrr_renderer_vulkan_bind_buffer(_purrr_renderer_t *renderer, _purrr_buff
   assert(data && buffer_data);
   assert(buffer->info->type < COUNT_PURRR_BUFFER_TYPES);
 
-  if (!data->active_cmd_buf || !data->active_render_target || !data->active_render_target->initialized || !data->active_pipeline || !data->active_pipeline->initialized || slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
+  if (!data->active_cmd_buf || !data->active_render_target || !data->active_render_target->initialized || !data->active_pipeline || !data->active_pipeline->initialized) return false;
 
   switch (buffer->info->type) {
   case PURRR_BUFFER_TYPE_UNIFORM:
   case PURRR_BUFFER_TYPE_STORAGE: {
+    if (slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
     _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
     assert(pipeline_data);
 
     vkCmdBindDescriptorSets(data->active_cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_data->pipeline_layout, slot_index, 1, &buffer_data->set, 0, NULL);
   } break;
   case PURRR_BUFFER_TYPE_VERTEX: {
+    if (slot_index != 0) return false;
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(data->active_cmd_buf, slot_index, 1, &buffer_data->buffer, &offset);
   } break;
