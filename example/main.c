@@ -45,9 +45,13 @@ int main(void) {
   purrr_window_t *window = purrr_window_create(&window_info);
   assert(window);
 
+  purrr_render_target_t *render_target = NULL;
+  purrr_pipeline_descriptor_t *pipeline_descriptor = NULL;
   purrr_renderer_info_t renderer_info = {
     .window = window,
     .vsync = true,
+    .swapchain_render_target = &render_target,
+    .swapchain_pipeline_descriptor = &pipeline_descriptor
   };
 
   purrr_renderer_t *renderer = purrr_renderer_create(&renderer_info);
@@ -83,7 +87,7 @@ int main(void) {
   purrr_pipeline_info_t pipeline_info = {
     .shaders = (purrr_shader_t*[]){ vertex_shader, fragment_shader },
     .shader_count = 2,
-    .pipeline_descriptor = renderer_info.swapchain_pipeline_descriptor,
+    .pipeline_descriptor = pipeline_descriptor,
     .mesh_info = (purrr_mesh_binding_info_t){
       .vertex_infos = vertex_infos,
       .vertex_info_count = 2,
@@ -183,23 +187,24 @@ int main(void) {
     purrr_renderer_begin_frame(renderer);
 
     purrr_renderer_begin_render_target(renderer, offscreen_render_target);
+
     purrr_renderer_bind_pipeline(renderer, offscreen_pipeline);
-    purrr_renderer_bind_texture(renderer, texture, 0);
 
     purrr_renderer_bind_buffer(renderer, s_mesh.vertex_buffer, 0);
     purrr_renderer_bind_buffer(renderer, s_mesh.index_buffer, 0);
+
+    purrr_renderer_bind_texture(renderer, texture, 0);
+    
     purrr_renderer_draw_indexed(renderer, 1, 0, s_mesh.index_count, 0, 0);
     
     purrr_renderer_end_render_target(renderer);
 
-    purrr_renderer_begin_render_target(renderer, renderer_info.swapchain_render_target);
+    purrr_renderer_begin_render_target(renderer, render_target);
     purrr_renderer_bind_pipeline(renderer, pipeline);
     purrr_texture_t *offscreen_texture = purrr_render_target_get_texture(offscreen_render_target, 0);
     assert(offscreen_texture);
     purrr_renderer_bind_texture(renderer, offscreen_texture, 0);
     
-    // purrr_renderer_bind_buffer(renderer, s_mesh.vertex_buffer, 0);
-    // purrr_renderer_bind_buffer(renderer, s_mesh.index_buffer, 0);
     purrr_renderer_draw_indexed(renderer, 1, 0, s_mesh.index_count, 0, 0);
 
     purrr_renderer_end_render_target(renderer);

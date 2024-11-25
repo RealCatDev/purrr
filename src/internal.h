@@ -70,7 +70,7 @@ typedef bool (*_purrr_renderer_wait_t)(_purrr_renderer_t *);
 struct _purrr_sampler_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  purrr_sampler_info_t *info;
+  purrr_sampler_info_t info;
 
   _purrr_sampler_init_t init;
   _purrr_sampler_cleanup_t cleanup;
@@ -88,7 +88,7 @@ void _purrr_sampler_vulkan_cleanup(_purrr_sampler_t *sampler);
 struct _purrr_texture_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  purrr_texture_info_t *info;
+  purrr_texture_info_t info;
 
   uint32_t width, height; // You never can trust user
 
@@ -112,7 +112,7 @@ bool _purrr_texture_vulkan_copy(_purrr_texture_t *dst, _purrr_texture_t *src, ui
 struct _purrr_pipeline_descriptor_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  purrr_pipeline_descriptor_info_t *info;
+  purrr_pipeline_descriptor_info_t info;
 
   _purrr_pipeline_descriptor_init_t init;
   _purrr_pipeline_descriptor_cleanup_t cleanup;
@@ -130,7 +130,7 @@ void _purrr_pipeline_descriptor_vulkan_cleanup(_purrr_pipeline_descriptor_t *pip
 struct _purrr_shader_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  purrr_shader_info_t *info;
+  purrr_shader_info_t info;
 
   purrr_shader_type_t type;
 
@@ -150,7 +150,7 @@ void _purrr_shader_vulkan_cleanup(_purrr_shader_t *shader);
 struct _purrr_pipeline_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  purrr_pipeline_info_t *info;
+  purrr_pipeline_info_t info;
 
   _purrr_pipeline_init_t init;
   _purrr_pipeline_cleanup_t cleanup;
@@ -193,7 +193,7 @@ _purrr_texture_t *_purrr_render_target_vulkan_get_texture(_purrr_render_target_t
 struct _purrr_buffer_s {
   bool initialized;
   _purrr_renderer_t *renderer;
-  purrr_buffer_info_t *info;
+  purrr_buffer_info_t info;
 
   _purrr_buffer_init_t init;
   _purrr_buffer_cleanup_t cleanup;
@@ -216,7 +216,7 @@ bool _purrr_buffer_vulkan_unmap(_purrr_buffer_t *buffer);
 
 struct _purrr_renderer_s {
   bool initialized;
-  purrr_renderer_info_t *info;
+  purrr_renderer_info_t info;
   purrr_api_t api;
 
   _purrr_renderer_init_t init;

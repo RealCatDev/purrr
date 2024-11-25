@@ -179,13 +179,11 @@ typedef struct {
   purrr_window_t *window;
   bool vsync;
 
-  purrr_format_t swapchain_format;
-  // Modified on create and resize, owned by renderer (DO NOT FREE OR CHANGE!)
-  purrr_pipeline_descriptor_t *swapchain_pipeline_descriptor;
-  // Modified on create and resize, owned by renderer (DO NOT FREE OR CHANGE!)
-  purrr_render_target_t *swapchain_render_targets[2];
-  // Modified by renderer (DO NOT FREE OR CHANGE!)
-  purrr_render_target_t *swapchain_render_target;
+  // Can be null I think
+  purrr_format_t *swapchain_format;
+  purrr_pipeline_descriptor_t **swapchain_pipeline_descriptor;
+  purrr_render_target_t **swapchain_render_targets[2];
+  purrr_render_target_t **swapchain_render_target;
 } purrr_renderer_info_t;
 
 // Functions
@@ -223,13 +221,14 @@ bool purrr_buffer_map(purrr_buffer_t *buffer, void **data);
 void purrr_buffer_unmap(purrr_buffer_t *buffer);
 
 // Callbacks
-typedef void (*purrr_renderer_resize_cb)(void *user_pointer);
+typedef void (*purrr_renderer_resize_cb)(purrr_renderer_t *);
 
 purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info);
-// TODO: Add a function for recreating swapchain
 void purrr_renderer_destroy(purrr_renderer_t *renderer);
 
-void purrr_renderer_set_user_data(purrr_renderer_t *renderer, void *ptr);
+void *purrr_renderer_get_user_pointer(purrr_renderer_t *renderer);
+void  purrr_renderer_set_user_pointer(purrr_renderer_t *renderer, void *ptr);
+
 void purrr_renderer_set_resize_callback(purrr_renderer_t *renderer, purrr_renderer_resize_cb cb);
 
 void purrr_renderer_begin_frame(purrr_renderer_t *renderer);

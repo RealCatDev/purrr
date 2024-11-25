@@ -90,7 +90,7 @@ purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer
   _purrr_sampler_t *internal = (_purrr_sampler_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (((_purrr_renderer_t*)renderer)->api) {
@@ -124,7 +124,7 @@ purrr_texture_t *purrr_texture_create(purrr_texture_info_t *info, purrr_renderer
   _purrr_texture_t *internal = (_purrr_texture_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (((_purrr_renderer_t*)renderer)->api) {
@@ -172,7 +172,7 @@ purrr_pipeline_descriptor_t *purrr_pipeline_descriptor_create(purrr_pipeline_des
   _purrr_pipeline_descriptor_t *internal = (_purrr_pipeline_descriptor_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (((_purrr_renderer_t*)renderer)->api) {
@@ -208,7 +208,7 @@ purrr_shader_t *purrr_shader_create(purrr_shader_info_t *info, purrr_renderer_t 
   _purrr_shader_t *internal = (_purrr_shader_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (((_purrr_renderer_t*)renderer)->api) {
@@ -248,7 +248,7 @@ purrr_pipeline_t *purrr_pipeline_create(purrr_pipeline_info_t *info, purrr_rende
   _purrr_pipeline_t *internal = (_purrr_pipeline_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (((_purrr_renderer_t*)renderer)->api) {
@@ -333,7 +333,7 @@ purrr_buffer_t *purrr_buffer_create(purrr_buffer_info_t *info, purrr_renderer_t 
   _purrr_buffer_t *internal = (_purrr_buffer_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->renderer = (_purrr_renderer_t*)renderer;
 
   switch (internal->renderer->api) {
@@ -391,7 +391,7 @@ purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
   _purrr_renderer_t *internal = (_purrr_renderer_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
-  internal->info = info;
+  internal->info = *info;
   internal->api = ((_purrr_window_t*)info->window)->api;
 
   switch (internal->api) {
@@ -431,7 +431,13 @@ void purrr_renderer_destroy(purrr_renderer_t *renderer) {
   if (renderer) _purrr_renderer_free((_purrr_renderer_t*)renderer);
 }
 
-void purrr_renderer_set_user_data(purrr_renderer_t *renderer, void *ptr) {
+void *purrr_renderer_get_user_pointer(purrr_renderer_t *renderer) {
+  _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
+  assert(internal);
+  return internal->user_ptr;
+}
+
+void purrr_renderer_set_user_pointer(purrr_renderer_t *renderer, void *ptr) {
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
   assert(internal);
   internal->user_ptr = ptr;
