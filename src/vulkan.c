@@ -1848,7 +1848,7 @@ bool _purrr_renderer_vulkan_bind_buffer(_purrr_renderer_t *renderer, _purrr_buff
   switch (buffer->info.type) {
   case PURRR_BUFFER_TYPE_UNIFORM:
   case PURRR_BUFFER_TYPE_STORAGE: {
-    if (slot_index >= data->active_pipeline->info->descriptor_slot_count) return false;
+    if (slot_index >= data->active_pipeline->info.descriptor_slot_count) return false;
     _purrr_pipeline_data_t *pipeline_data = (_purrr_pipeline_data_t*)data->active_pipeline->data_ptr;
     assert(pipeline_data);
 
