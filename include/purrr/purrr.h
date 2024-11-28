@@ -5,6 +5,10 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#ifdef    __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 typedef enum {
   PURRR_API_VULKAN = 0,
   COUNT_PURRR_APIS
@@ -248,6 +252,10 @@ void purrr_renderer_wait(purrr_renderer_t *renderer);
 void purrr_poll_events();
 
 #include "input.h"
+
+#ifdef    __cplusplus
+}
+#endif // __cplusplus
 
 #endif // PURRR_H_
 
