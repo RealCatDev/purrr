@@ -1732,7 +1732,7 @@ bool _purrr_renderer_vulkan_begin_frame(_purrr_renderer_t *renderer) {
   assert(renderer->initialized && data);
 
   vkWaitForFences(data->device, 1, &data->flight_fences[data->frame_index], VK_TRUE, UINT64_MAX);
-  VkResult result = vkAcquireNextImageKHR(data->device, data->swapchain, UINT64_MAX-1, data->image_semaphores[data->frame_index], VK_NULL_HANDLE, &data->image_index);
+  VkResult result = vkAcquireNextImageKHR(data->device, data->swapchain, UINT64_MAX, data->image_semaphores[data->frame_index], VK_NULL_HANDLE, &data->image_index);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) return _purrr_renderer_recreate_swapchain(renderer) && _purrr_renderer_vulkan_begin_frame(renderer);
   else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) return false;
 
