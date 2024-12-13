@@ -12,7 +12,13 @@
 typedef struct {
   purrr_api_t api;
   GLFWwindow *window;
+  GLFWimage cursors[2];
 } _purrr_window_t;
+
+typedef struct {
+  GLFWcursor *cursor;
+  uint8_t *pixels;
+} _purrr_cursor_t;
 
 
 

@@ -79,6 +79,98 @@ void purrr_window_get_size(purrr_window_t *window, uint32_t *out_width, uint32_t
   if (out_height) *out_height = (uint32_t)height;
 }
 
+// I don't like this but it is what it is
+void purrr_window_set_icons(purrr_window_t *window, purrr_window_icon_info_t *big, purrr_window_icon_info_t *small) {
+  _purrr_window_t *internal = (_purrr_window_t*)window;
+  assert(internal && internal->window);
+
+  if (small) assert(big);
+
+  uint32_t count = (big != NULL) + (small != NULL);
+
+  static GLFWimage s_images[2] = {0};
+
+  GLFWimage *images = NULL;
+  if (count > 0) images = s_images;
+
+  if (big) {
+    images[0] = (GLFWimage){
+      .pixels = big->pixels,
+      .width  = big->width,
+      .height = big->height,
+    };
+  }
+
+  if (small) {
+    images[1] = (GLFWimage){
+      .pixels = small->pixels,
+      .width  = small->width,
+      .height = small->height,
+    };
+  }
+
+  glfwSetWindowIcon(internal->window, count, images);
+}
+
+void purrr_window_set_cursor(purrr_window_t *window, purrr_cursor_t *cursor) {
+  _purrr_window_t *internal = (_purrr_window_t*)window;
+  assert(internal && internal->window);
+
+  _purrr_cursor_t *internal_cursor = (_purrr_cursor_t*)cursor;
+
+  GLFWcursor *cursor_handle = NULL;
+  if (internal_cursor) cursor_handle = internal_cursor->cursor;
+
+  glfwSetCursor(internal->window, cursor_handle);
+}
+
+// cursor
+
+purrr_cursor_t *purrr_cursor_create_standard(purrr_standard_cursor_t type) {
+  _purrr_cursor_t *internal = (_purrr_cursor_t*)malloc(sizeof(*internal));
+  if (!internal) return NULL;
+  memset(internal, 0, sizeof(*internal));
+  internal->cursor = glfwCreateStandardCursor((int)type);
+
+  if (!internal->cursor) {
+    free(internal);
+    return NULL;
+  }
+
+  return (purrr_cursor_t*)internal;
+}
+
+purrr_cursor_t *purrr_cursor_create(purrr_cursor_info_t *info) {
+  assert(info && info->pixels);
+
+  _purrr_cursor_t *internal = (_purrr_cursor_t*)malloc(sizeof(*internal));
+  if (!internal) return NULL;
+  memset(internal, 0, sizeof(*internal));
+
+  size_t pixels_size = info->width*info->height*4;
+
+  internal->pixels = (uint8_t*)malloc(pixels_size);
+  assert(internal->pixels);
+  memcpy(internal->pixels, info->pixels, pixels_size);
+
+  GLFWimage image = {
+    .pixels = internal->pixels,
+    .width  = info->width,
+    .height = info->height,
+  };
+
+  internal->cursor = glfwCreateCursor(&image, info->xhot, info->yhot);
+
+  return (purrr_cursor_t*)internal;
+}
+
+void purrr_cursor_destroy(purrr_cursor_t *cursor) {
+  _purrr_cursor_t *internal = (_purrr_cursor_t*)cursor;
+  if (!internal) return;
+  if (internal->cursor) glfwDestroyCursor(internal->cursor);
+  if (internal->pixels) free(internal->pixels);
+}
+
 // sampler
 
 purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer) {

@@ -33,17 +33,33 @@ void initialize_mesh(purrr_renderer_t *);
 void cleanup_mesh();
 
 int main(void) {
+  int w, h, c;
+  stbi_uc *pixels = stbi_load("./chp.png", &w, &h, &c, STBI_rgb_alpha);
+
   purrr_window_info_t window_info = {
     .api = PURRR_API_VULKAN,
-    .title = "UwU",
-    .width = PURRR_WINDOW_SIZE_DONT_MIND,
-    .height = PURRR_WINDOW_SIZE_DONT_MIND,
+    .title = "purrr example",
+    .width = w,
+    .height = h,
     .x = PURRR_WINDOW_POS_CENTER,
     .y = PURRR_WINDOW_POS_CENTER,
   };
 
   purrr_window_t *window = purrr_window_create(&window_info);
   assert(window);
+
+  purrr_cursor_t *cursor = purrr_cursor_create_standard(PURRR_STANDARD_CURSOR_RESIZE);
+  assert(cursor);
+
+  purrr_window_set_cursor(window, cursor);
+
+  purrr_window_icon_info_t icon_info = {
+    .pixels = pixels,
+    .width = w,
+    .height = h,
+  };
+
+  purrr_window_set_icons(window, &icon_info, NULL);
 
   purrr_render_target_t *render_target = NULL;
   purrr_pipeline_descriptor_t *pipeline_descriptor = NULL;
@@ -100,7 +116,7 @@ int main(void) {
   assert(pipeline);
 
   initialize_mesh(renderer);
-  
+
   purrr_sampler_info_t sampler_info = {
     .mag_filter = PURRR_SAMPLER_FILTER_LINEAR,
     .min_filter = PURRR_SAMPLER_FILTER_LINEAR,
@@ -117,19 +133,15 @@ int main(void) {
   };
 
   purrr_texture_t *texture = NULL;
-  {
-    int w, h, c;
-    stbi_uc *pixels = stbi_load("./chp.png", &w, &h, &c, STBI_grey_alpha);
-    texture_info.width  = (uint32_t)w;
-    texture_info.height = (uint32_t)h;
-    texture_info.format = PURRR_FORMAT_GRAY_ALPHA;
 
-    texture = purrr_texture_create(&texture_info, renderer);
-    assert(texture);
+  texture_info.width  = (uint32_t)w;
+  texture_info.height = (uint32_t)h;
+  texture_info.format = PURRR_FORMAT_RGBA8RGB;
 
-    assert(purrr_texture_load(texture, pixels, (uint32_t)w, (uint32_t)h));
-    stbi_image_free(pixels);
-  }
+  texture = purrr_texture_create(&texture_info, renderer);
+  assert(texture);
+
+  assert(purrr_texture_load(texture, pixels, (uint32_t)w, (uint32_t)h));
 
   purrr_pipeline_descriptor_attachment_info_t color_attachments[] = {
     (purrr_pipeline_descriptor_attachment_info_t){
@@ -194,9 +206,9 @@ int main(void) {
     purrr_renderer_bind_buffer(renderer, s_mesh.index_buffer, 0);
 
     purrr_renderer_bind_texture(renderer, texture, 0);
-    
+
     purrr_renderer_draw_indexed(renderer, 1, 0, s_mesh.index_count, 0, 0);
-    
+
     purrr_renderer_end_render_target(renderer);
 
     purrr_renderer_begin_render_target(renderer, render_target);
@@ -204,7 +216,7 @@ int main(void) {
     purrr_texture_t *offscreen_texture = purrr_render_target_get_texture(offscreen_render_target, 0);
     assert(offscreen_texture);
     purrr_renderer_bind_texture(renderer, offscreen_texture, 0);
-    
+
     purrr_renderer_draw_indexed(renderer, 1, 0, s_mesh.index_count, 0, 0);
 
     purrr_renderer_end_render_target(renderer);
@@ -223,6 +235,7 @@ int main(void) {
   purrr_pipeline_destroy(pipeline);
   purrr_renderer_destroy(renderer);
   purrr_window_destroy(window);
+  stbi_image_free(pixels);
 
   return 0;
 }

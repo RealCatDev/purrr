@@ -23,6 +23,7 @@ typedef void *handle_t;
 // Structures
 
 typedef struct purrr_window_s purrr_window_t;
+typedef struct purrr_cursor_s purrr_cursor_t;
 typedef struct purrr_renderer_s purrr_renderer_t;
 typedef struct purrr_sampler_s purrr_sampler_t;
 typedef struct purrr_texture_s purrr_texture_t;
@@ -33,6 +34,19 @@ typedef struct purrr_pipeline_s purrr_pipeline_t;
 typedef struct purrr_buffer_s purrr_buffer_t;
 
 // Enums
+
+typedef enum {
+  PURRR_STANDARD_CURSOR_ARROW     = 0x00036001,
+  PURRR_STANDARD_CURSOR_IBEAM     = 0x00036002,
+  PURRR_STANDARD_CURSOR_CROSSHAIR = 0x00036003,
+  PURRR_STANDARD_CURSOR_HAND      = 0x00036004,
+  PURRR_STANDARD_CURSOR_HRESIZE   = 0x00036005,
+  PURRR_STANDARD_CURSOR_VRESIZE   = 0x00036006,
+  PURRR_STANDARD_CURSOR_RESIZE    = 0x00036009,
+
+  PURRR_STANDARD_CURSOR_RESIZE_NWSE = 0x00036007,
+  PURRR_STANDARD_CURSOR_RESIZE_NESW = 0x00036008,
+} purrr_standard_cursor_t;
 
 typedef enum {
   PURRR_FORMAT_UNDEFINED = 0,
@@ -102,6 +116,20 @@ typedef struct {
   bool fullscreen;
   purrr_api_t api;
 } purrr_window_info_t;
+
+typedef struct {
+  uint8_t *pixels;
+  int width;
+  int height;
+} purrr_window_icon_info_t;
+
+typedef struct {
+  uint8_t *pixels;
+  int width;
+  int height;
+  int xhot;
+  int yhot;
+} purrr_cursor_info_t;
 
 typedef struct {
   purrr_sampler_filter_t mag_filter;
@@ -196,6 +224,12 @@ purrr_window_t *purrr_window_create(purrr_window_info_t *info);
 void purrr_window_destroy(purrr_window_t *window);
 bool purrr_window_should_close(purrr_window_t *window);
 void purrr_window_get_size(purrr_window_t *window, uint32_t *width, uint32_t *height);
+void purrr_window_set_icons(purrr_window_t *window, purrr_window_icon_info_t *big, purrr_window_icon_info_t *small);
+void purrr_window_set_cursor(purrr_window_t *window, purrr_cursor_t *cursor);
+
+purrr_cursor_t *purrr_cursor_create_standard(purrr_standard_cursor_t type);
+purrr_cursor_t *purrr_cursor_create(purrr_cursor_info_t *info);
+void purrr_cursor_destroy(purrr_cursor_t *cursor);
 
 purrr_sampler_t *purrr_sampler_create(purrr_sampler_info_t *info, purrr_renderer_t *renderer);
 void purrr_sampler_destroy(purrr_sampler_t *sampler);
