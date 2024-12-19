@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+
 typedef struct {
   purrr_api_t api;
   GLFWwindow *window;

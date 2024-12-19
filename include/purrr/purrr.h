@@ -107,6 +107,24 @@ typedef enum {
   COUNT_PURRR_BUFFER_TYPES
 } purrr_buffer_type_t;
 
+// Callbacks
+
+typedef void (*purrr_key_callback_t)(purrr_window_t* window, int key, int scancode, int action, int mods);
+typedef void (*purrr_mouse_button_callback_t)(purrr_window_t* window, int button, int action, int mods);
+typedef void (*purrr_cursor_pos_callback_t)(purrr_window_t* window, double xpos, double ypos);
+typedef void (*purrr_window_close_callback_t)(purrr_window_t* window);
+typedef void (*purrr_window_size_callback_t)(purrr_window_t* window, int width, int height);
+
+typedef struct _purrr_callbacks_s {
+    purrr_key_callback_t key_callback;
+    purrr_mouse_button_callback_t mouse_button_callback;
+    purrr_cursor_pos_callback_t cursor_pos_callback;
+    purrr_window_close_callback_t window_close_callback;
+    purrr_window_size_callback_t window_size_callback;
+} _purrr_callbacks_t;
+
+static _purrr_callbacks_t user_callbacks = { 0 };
+// Catdev ik you will changes this later on
 // Infos
 
 typedef struct {
@@ -115,6 +133,7 @@ typedef struct {
   const char *title;
   bool fullscreen;
   purrr_api_t api;
+
 } purrr_window_info_t;
 
 typedef struct {
@@ -259,6 +278,15 @@ bool purrr_buffer_map(purrr_buffer_t *buffer, void **data);
 void purrr_buffer_unmap(purrr_buffer_t *buffer);
 
 // Callbacks
+
+void purrr_set_key_callback(purrr_key_callback_t callback);
+void purrr_set_mouse_button_callback(purrr_mouse_button_callback_t callback);
+void purrr_set_cursor_pos_callback(purrr_cursor_pos_callback_t callback);
+void purrr_set_window_close_callback(purrr_window_close_callback_t callback);
+void purrr_set_window_size_callback(purrr_window_size_callback_t callback);
+
+void purrr_initialize_callbacks(purrr_window_t *window);
+
 typedef void (*purrr_renderer_resize_cb)(purrr_renderer_t *);
 
 purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info);
