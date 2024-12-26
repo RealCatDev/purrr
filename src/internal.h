@@ -9,12 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-
-
 typedef struct {
   purrr_api_t api;
   GLFWwindow *window;
   GLFWimage cursors[2];
+  purrr_window_callbacks_t callbacks;
 } _purrr_window_t;
 
 typedef struct {

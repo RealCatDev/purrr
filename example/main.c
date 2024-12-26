@@ -32,9 +32,15 @@ static struct {
 void initialize_mesh(purrr_renderer_t *);
 void cleanup_mesh();
 
+void key_callback(purrr_window_t *window, int key, int scancode, int action, int mods) {
+  printf("Key %d %d %d %d\n", key, scancode, action, mods);
+}
+
 int main(void) {
   int w, h, c;
   stbi_uc *pixels = stbi_load("./chp.png", &w, &h, &c, STBI_rgb_alpha);
+
+  purrr_window_callbacks_t *callbacks = NULL;
 
   purrr_window_info_t window_info = {
     .api = PURRR_API_VULKAN,
@@ -43,10 +49,13 @@ int main(void) {
     .height = h,
     .x = PURRR_WINDOW_POS_CENTER,
     .y = PURRR_WINDOW_POS_CENTER,
+    .callbacks_ptr = &callbacks,
   };
 
   purrr_window_t *window = purrr_window_create(&window_info);
   assert(window);
+
+  callbacks->key = &key_callback;
 
   purrr_cursor_t *cursor = purrr_cursor_create_standard(PURRR_STANDARD_CURSOR_RESIZE);
   assert(cursor);

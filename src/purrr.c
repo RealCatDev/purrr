@@ -4,6 +4,38 @@
 #include <stdlib.h>
 #include <assert.h>
 
+void _purrr_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+  void *user_ptr = glfwGetWindowUserPointer(window);
+  _purrr_window_t *internal = (_purrr_window_t*)user_ptr;
+  if (internal->callbacks.key) internal->callbacks.key((purrr_window_t*)internal, key, scancode, action, mods);
+}
+
+void _purrr_mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+  void *user_ptr = glfwGetWindowUserPointer(window);
+  _purrr_window_t *internal = (_purrr_window_t*)user_ptr;
+  if (internal->callbacks.mouse_button) internal->callbacks.mouse_button((purrr_window_t*)internal, button, action, mods);
+}
+
+void _purrr_cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
+  void *user_ptr = glfwGetWindowUserPointer(window);
+  _purrr_window_t *internal = (_purrr_window_t*)user_ptr;
+  if (internal->callbacks.cursor_position) internal->callbacks.cursor_position((purrr_window_t*)internal, xpos, ypos);
+}
+
+void _purrr_window_size_callback(GLFWwindow *window, int width, int height) {
+  void *user_ptr = glfwGetWindowUserPointer(window);
+  _purrr_window_t *internal = (_purrr_window_t*)user_ptr;
+  if (internal->callbacks.window_size) internal->callbacks.window_size((purrr_window_t*)internal, width, height);
+}
+
+void _purrr_window_close_callback(GLFWwindow *window) {
+  void *user_ptr = glfwGetWindowUserPointer(window);
+  _purrr_window_t *internal = (_purrr_window_t*)user_ptr;
+  if (internal->callbacks.window_close) {
+    glfwSetWindowShouldClose(window, internal->callbacks.window_close((purrr_window_t*)internal));
+  }
+}
+
 purrr_window_t *purrr_window_create(purrr_window_info_t *info) {
   if (!info || info->api >= COUNT_PURRR_APIS) return NULL;
   if (!info->title) info->title = "purrr window";
@@ -47,12 +79,23 @@ purrr_window_t *purrr_window_create(purrr_window_info_t *info) {
   } break;
   }
 
+  if (info->callbacks_ptr) *info->callbacks_ptr = &internal->callbacks;
+
   internal->window = glfwCreateWindow(info->width, info->height, info->title, monitor, NULL);
   if (!internal->window) {
     purrr_window_destroy((purrr_window_t*)internal);
     return NULL;
   }
+
   glfwMakeContextCurrent(internal->window);
+  glfwSetWindowUserPointer(internal->window, internal);
+
+  glfwSetKeyCallback(internal->window, &_purrr_key_callback);
+  glfwSetMouseButtonCallback(internal->window, &_purrr_mouse_button_callback);
+  glfwSetCursorPosCallback(internal->window, &_purrr_cursor_pos_callback);
+
+  glfwSetWindowSizeCallback(internal->window, &_purrr_window_size_callback);
+  glfwSetWindowCloseCallback(internal->window, &_purrr_window_close_callback);
 
   glfwSetWindowMonitor(internal->window, monitor, info->x, info->y, info->width, info->height, mode->refreshRate);
 
@@ -609,68 +652,6 @@ void purrr_renderer_wait(purrr_renderer_t *renderer) {
 
 void purrr_poll_events() {
   glfwPollEvents();
-}
-
-// I put it here to make your scroll figer ache
-// Callbacks:
-void purrr_set_key_callback(purrr_key_callback_t callback) {
-    user_callbacks.key_callback = callback;
-}
-
-void purrr_set_mouse_button_callback(purrr_mouse_button_callback_t callback) {
-    user_callbacks.mouse_button_callback = callback;
-}
-
-void purrr_set_cursor_pos_callback(purrr_cursor_pos_callback_t callback) {
-    user_callbacks.cursor_pos_callback = callback;
-}
-
-void purrr_set_window_close_callback(purrr_window_close_callback_t callback) {
-    user_callbacks.window_close_callback = callback;
-}
-
-void purrr_set_window_size_callback(purrr_window_size_callback_t callback) {
-    user_callbacks.window_size_callback = callback;
-}
-
-static void purrr_default_key_callback(_purrr_window_t* window, int key, int scancode, int action, int mods) {
-    if (user_callbacks.key_callback) {
-        user_callbacks.key_callback(window, key, scancode, action, mods);
-    }
-}
-
-static void purrr_default_mouse_button_callback(_purrr_window_t* window, int button, int action, int mods) {
-    if (user_callbacks.mouse_button_callback) {
-        user_callbacks.mouse_button_callback(window, button, action, mods);
-    }
-}
-
-static void purrr_default_cursor_pos_callback(_purrr_window_t* window, double xpos, double ypos) {
-    if (user_callbacks.cursor_pos_callback) {
-        user_callbacks.cursor_pos_callback(window, xpos, ypos);
-    }
-}
-
-static void purrr_default_window_close_callback(_purrr_window_t* window) {
-    if (user_callbacks.window_close_callback) {
-        user_callbacks.window_close_callback(window);
-    }
-}
-
-static void purrr_default_window_size_callback(_purrr_window_t* window, int width, int height) {
-    if (user_callbacks.window_size_callback) {
-        user_callbacks.window_size_callback(window, width, height);
-    }
-}
-
-void purrr_initialize_callbacks(purrr_window_t* window) {
-    _purrr_window_t* internal_window = (_purrr_window_t*)window;
-    assert(internal_window);
-    glfwSetKeyCallback(internal_window->window, purrr_default_key_callback);
-    glfwSetMouseButtonCallback(internal_window->window, purrr_default_mouse_button_callback);
-    glfwSetCursorPosCallback(internal_window->window, purrr_default_cursor_pos_callback);
-    glfwSetWindowCloseCallback(internal_window->window, purrr_default_window_close_callback);
-    glfwSetWindowSizeCallback(internal_window->window, purrr_default_window_size_callback);
 }
 
 // Input:
