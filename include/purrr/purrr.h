@@ -115,7 +115,7 @@ typedef void (*purrr_cursor_position_callback_t)(purrr_window_t* window, double 
 typedef void (*purrr_window_size_callback_t)(purrr_window_t* window, int width, int height);
 typedef bool (*purrr_window_close_callback_t)(purrr_window_t* window);
 
-typedef struct _purrr_callbacks_s {
+typedef struct purrr_window_callbacks_s {
   purrr_key_callback_t key;
   purrr_mouse_button_callback_t mouse_button;
   purrr_cursor_position_callback_t cursor_position;
