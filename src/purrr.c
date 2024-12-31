@@ -419,7 +419,7 @@ purrr_shader_t *purrr_shader_create(purrr_shader_info_t *info, purrr_renderer_t 
 }
 
 void purrr_shader_destroy(purrr_shader_t *shader) {
-
+  if (shader) _purrr_shader_free((_purrr_shader_t*)shader);
 }
 
 // pipeline

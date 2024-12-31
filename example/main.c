@@ -102,6 +102,7 @@ int main(void) {
     .format = swap_format,
     .load = false,
     .store = true,
+    .present_src = true,
   };
 
   purrr_pipeline_descriptor_info_t pipeline_descriptor_info = {
@@ -168,6 +169,9 @@ int main(void) {
   purrr_pipeline_t *pipeline = purrr_pipeline_create(&pipeline_info, renderer);
   assert(pipeline);
 
+  purrr_shader_destroy(vertex_shader);
+  purrr_shader_destroy(fragment_shader);
+
   initialize_mesh(renderer);
 
   purrr_image_info_t image_info = {
@@ -200,9 +204,6 @@ int main(void) {
   purrr_texture_t *texture = purrr_texture_create(&texture_info, renderer);
   assert(texture);
 
-  purrr_shader_destroy(vertex_shader);
-  purrr_shader_destroy(fragment_shader);
-
   uint32_t image_index = 0;
   while (!purrr_window_should_close(window) && s_running) {
     purrr_renderer_begin_frame(renderer, &image_index);
@@ -228,6 +229,8 @@ int main(void) {
   purrr_sampler_destroy(sampler);
   purrr_image_destroy(image);
   purrr_pipeline_destroy(pipeline);
+  purrr_pipeline_descriptor_destroy(pipeline_descriptor);
+  for (uint32_t i = 0; i < 2; ++i) purrr_render_target_destroy(render_targets[i]);
   purrr_renderer_destroy(renderer);
   purrr_window_destroy(window);
   stbi_image_free(pixels);

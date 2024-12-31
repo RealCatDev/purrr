@@ -188,6 +188,7 @@ typedef struct {
   purrr_format_t format;
   bool load;
   bool store;
+  bool present_src; // Set to true if it's a swapchain image.
 } purrr_pipeline_descriptor_attachment_info_t;
 
 typedef struct {
