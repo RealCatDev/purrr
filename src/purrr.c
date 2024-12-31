@@ -473,6 +473,7 @@ purrr_render_target_t *purrr_render_target_create(purrr_render_target_info_t *in
   _purrr_render_target_t *internal = (_purrr_render_target_t*)malloc(sizeof(*internal));
   if (!internal) return NULL;
   memset(internal, 0, sizeof(*internal));
+  internal->info = *info;
   internal->descriptor = (_purrr_pipeline_descriptor_t*)info->pipeline_descriptor;
   internal->width = info->width;
   internal->height = info->height;
@@ -635,10 +636,10 @@ void purrr_renderer_set_resize_callback(purrr_renderer_t *renderer, purrr_render
   internal->callbacks.resize = cb;
 }
 
-void purrr_renderer_begin_frame(purrr_renderer_t *renderer) {
+void purrr_renderer_begin_frame(purrr_renderer_t *renderer, uint32_t *image_index) {
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
   assert(internal && internal->begin_frame);
-  assert(internal->begin_frame(internal));
+  assert(internal->begin_frame(internal, image_index));
 }
 
 void purrr_renderer_begin_render_target(purrr_renderer_t *renderer, purrr_render_target_t *render_target) {

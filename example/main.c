@@ -54,7 +54,7 @@ int main(void) {
   purrr_window_callbacks_t *callbacks = NULL;
 
   purrr_window_info_t window_info = {
-    .options = (purrr_window_options_t)(PURRR_WINDOW_OPTION_BORDERLESS | PURRR_WINDOW_OPTION_NOT_RESIZABLE | PURRR_WINDOW_OPTION_TRANSPARENT),
+    .options = (purrr_window_options_t)(PURRR_WINDOW_OPTION_BORDERLESS | PURRR_WINDOW_OPTION_NOT_RESIZABLE | PURRR_WINDOW_OPTION_TRANSPARENT), // I don't want to deal with resizing the render targets rn.
     .api = PURRR_API_VULKAN,
     .title = "purrr example",
     .width = w,
@@ -85,17 +85,46 @@ int main(void) {
 
   purrr_window_set_icons(window, &icon_info, NULL);
 
-  purrr_render_target_t *render_target = NULL;
-  purrr_pipeline_descriptor_t *pipeline_descriptor = NULL;
+  purrr_format_t swap_format = PURRR_FORMAT_UNDEFINED;
+  purrr_image_t **swap_images = NULL;
   purrr_renderer_info_t renderer_info = {
     .window = window,
     .vsync = true,
-    .swapchain_render_target = &render_target,
-    .swapchain_pipeline_descriptor = &pipeline_descriptor
+    .image_count = 2,
+    .swapchain_format = &swap_format,
+    .swapchain_images = &swap_images,
   };
 
   purrr_renderer_t *renderer = purrr_renderer_create(&renderer_info);
   assert(renderer);
+
+  purrr_pipeline_descriptor_attachment_info_t color_attachment = {
+    .format = swap_format,
+    .load = false,
+    .store = true,
+  };
+
+  purrr_pipeline_descriptor_info_t pipeline_descriptor_info = {
+    .color_attachments = &color_attachment,
+    .color_attachment_count = 1,
+  };
+
+  purrr_pipeline_descriptor_t *pipeline_descriptor = purrr_pipeline_descriptor_create(&pipeline_descriptor_info, renderer);
+  assert(pipeline_descriptor);
+
+  purrr_render_target_t *render_targets[2];
+
+  purrr_render_target_info_t render_target_info = {
+    .pipeline_descriptor = pipeline_descriptor,
+  };
+  purrr_window_get_size(window, &render_target_info.width, &render_target_info.height);
+
+  for (uint32_t i = 0; i < 2; ++i) {
+    render_target_info.images = &swap_images[i];
+
+    render_targets[i] = purrr_render_target_create(&render_target_info, renderer);
+    assert(render_targets[i]);
+  }
 
   purrr_shader_info_t vertex_shader_info = {
     .filename = "./vertex.spv",
@@ -174,10 +203,11 @@ int main(void) {
   purrr_shader_destroy(vertex_shader);
   purrr_shader_destroy(fragment_shader);
 
+  uint32_t image_index = 0;
   while (!purrr_window_should_close(window) && s_running) {
-    purrr_renderer_begin_frame(renderer);
+    purrr_renderer_begin_frame(renderer, &image_index);
 
-    purrr_renderer_begin_render_target(renderer, render_target);
+    purrr_renderer_begin_render_target(renderer, render_targets[image_index]);
     purrr_renderer_bind_pipeline(renderer, pipeline);
 
     purrr_renderer_bind_buffer(renderer, s_mesh.vertex_buffer, 0);

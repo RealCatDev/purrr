@@ -199,6 +199,7 @@ typedef struct {
 typedef struct {
   purrr_pipeline_descriptor_t *pipeline_descriptor;
   uint32_t width, height;
+  purrr_image_t **images;
 } purrr_render_target_info_t;
 
 typedef struct {
@@ -248,12 +249,11 @@ typedef struct {
 typedef struct {
   purrr_window_t *window;
   bool vsync;
+  uint32_t image_count;
 
   // Can be null I think
   purrr_format_t *swapchain_format;
-  purrr_pipeline_descriptor_t **swapchain_pipeline_descriptor;
-  purrr_render_target_t **swapchain_render_targets[2];
-  purrr_render_target_t **swapchain_render_target;
+  purrr_image_t ***swapchain_images;
 } purrr_renderer_info_t;
 
 // Functions
@@ -313,7 +313,7 @@ void  purrr_renderer_set_user_pointer(purrr_renderer_t *renderer, void *ptr);
 
 void purrr_renderer_set_resize_callback(purrr_renderer_t *renderer, purrr_renderer_resize_cb cb);
 
-void purrr_renderer_begin_frame(purrr_renderer_t *renderer);
+void purrr_renderer_begin_frame(purrr_renderer_t *renderer, uint32_t *image_index);
 void purrr_renderer_begin_render_target(purrr_renderer_t *renderer, purrr_render_target_t *render_target);
 void purrr_renderer_bind_pipeline(purrr_renderer_t *renderer, purrr_pipeline_t *pipeline);
 void purrr_renderer_bind_texture(purrr_renderer_t *renderer, purrr_texture_t *texture, uint32_t slot_index);
