@@ -34,6 +34,17 @@ typedef struct purrr_shader_s purrr_shader_t;
 typedef struct purrr_pipeline_s purrr_pipeline_t;
 typedef struct purrr_buffer_s purrr_buffer_t;
 
+// Options
+
+typedef uint32_t purrr_window_options_t;
+
+enum purrr_window_option_e {
+  PURRR_WINDOW_OPTION_NOT_RESIZABLE = (1 << 0),
+  PURRR_WINDOW_OPTION_BORDERLESS    = (1 << 1),
+  PURRR_WINDOW_OPTION_INVISIBLE     = (1 << 2),
+  PURRR_WINDOW_OPTION_TRANSPARENT   = (1 << 3),
+};
+
 // Enums
 
 typedef enum {
@@ -130,6 +141,8 @@ typedef struct purrr_window_callbacks_s {
 // Infos
 
 typedef struct {
+  purrr_window_options_t options;
+
   uint32_t x, y;
   int32_t width, height;
   const char *title;

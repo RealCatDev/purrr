@@ -81,6 +81,11 @@ purrr_window_t *purrr_window_create(purrr_window_info_t *info) {
 
   if (info->callbacks_ptr) *info->callbacks_ptr = &internal->callbacks;
 
+  glfwWindowHint(GLFW_RESIZABLE, !(info->options & PURRR_WINDOW_OPTION_NOT_RESIZABLE));
+  glfwWindowHint(GLFW_DECORATED, !(info->options & PURRR_WINDOW_OPTION_BORDERLESS));
+  glfwWindowHint(GLFW_VISIBLE,   !(info->options & PURRR_WINDOW_OPTION_INVISIBLE));
+  glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, (info->options & PURRR_WINDOW_OPTION_TRANSPARENT));
+
   internal->window = glfwCreateWindow(info->width, info->height, info->title, monitor, NULL);
   if (!internal->window) {
     purrr_window_destroy((purrr_window_t*)internal);

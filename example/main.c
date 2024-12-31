@@ -1,5 +1,9 @@
 #include "purrr/purrr.h"
 
+/*
+ * Press `escape` to close.
+ */
+
 #include <stdio.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -50,6 +54,7 @@ int main(void) {
   purrr_window_callbacks_t *callbacks = NULL;
 
   purrr_window_info_t window_info = {
+    .options = (purrr_window_options_t)(PURRR_WINDOW_OPTION_BORDERLESS | PURRR_WINDOW_OPTION_NOT_RESIZABLE | PURRR_WINDOW_OPTION_TRANSPARENT),
     .api = PURRR_API_VULKAN,
     .title = "purrr example",
     .width = w,
