@@ -1469,7 +1469,7 @@ bool _purrr_renderer_recreate_swapchain(_purrr_renderer_t *renderer) {
   _purrr_renderer_cleanup_swapchain(renderer);
   if (!_purrr_renderer_create_swapchain(renderer)) return false;
 
-  if (renderer->callbacks.resize) renderer->callbacks.resize(renderer->user_ptr);
+  if (renderer->callbacks.resize) renderer->callbacks.resize((purrr_renderer_t*)renderer);
 
   return true;
 }

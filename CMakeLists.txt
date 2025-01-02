@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.8)
 
 project(purrr)
 
@@ -15,5 +15,5 @@ target_include_directories(purrr PUBLIC include/)
 target_compile_definitions(purrr PUBLIC $<$<CONFIG:Debug>:PURRR_DEBUG>)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-  add_subdirectory(example/)
+  add_subdirectory(examples/)
 endif()
