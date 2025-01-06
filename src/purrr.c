@@ -585,6 +585,7 @@ purrr_renderer_t *purrr_renderer_create(purrr_renderer_info_t *info) {
   case PURRR_API_VULKAN: {
     internal->init = _purrr_renderer_vulkan_init;
     internal->cleanup = _purrr_renderer_vulkan_cleanup;
+    internal->get_sample_counts = _purrr_renderer_vulkan_get_sample_counts;
     internal->begin_frame = _purrr_renderer_vulkan_begin_frame;
     internal->begin_render_target = _purrr_renderer_vulkan_begin_render_target;
     internal->bind_pipeline = _purrr_renderer_vulkan_bind_pipeline;
@@ -634,6 +635,12 @@ void purrr_renderer_set_resize_callback(purrr_renderer_t *renderer, purrr_render
   _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
   assert(internal);
   internal->callbacks.resize = cb;
+}
+
+uint32_t purrr_renderer_get_sample_counts(purrr_renderer_t *renderer, purrr_sample_count_t **array) {
+  _purrr_renderer_t *internal = (_purrr_renderer_t*)renderer;
+  assert(internal && internal->begin_frame);
+  assert(internal->get_sample_counts(internal, array));
 }
 
 void purrr_renderer_begin_frame(purrr_renderer_t *renderer, uint32_t *image_index) {
