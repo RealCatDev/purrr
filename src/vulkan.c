@@ -520,7 +520,7 @@ bool _purrr_image_vulkan_init(_purrr_image_t *image) {
       },
       1, // TODO: Implement, I forgot what it was an am too lazy to check :p
       1,
-      VK_SAMPLE_COUNT_1_BIT, // TODO: Implement
+      (VkSampleCountFlagBits)1<<image->info.sample_count,
       VK_IMAGE_TILING_OPTIMAL, // TODO: Add an option for tiling (if needed)
       (VkImageUsageFlags)(usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
       VK_SHARING_MODE_EXCLUSIVE,
@@ -700,32 +700,55 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
   assert(data && renderer_data);
 
   {
-    uint32_t attachment_count = pipeline_descriptor->info.color_attachment_count+(pipeline_descriptor->info.depth_attachment?1:0);
+    uint8_t resolve_multiplier = pipeline_descriptor->info.resolve_attachments?2:1;
+    uint32_t attachment_count = (pipeline_descriptor->info.color_attachment_count*resolve_multiplier)+(pipeline_descriptor->info.depth_attachment?1:0);
     VkAttachmentDescription *attachments = (VkAttachmentDescription*)malloc(sizeof(*attachments) * attachment_count);
     assert(attachments);
-    VkAttachmentReference *color_references = (VkAttachmentReference*)malloc(sizeof(*color_references) * pipeline_descriptor->info.color_attachment_count);
-    assert(color_references);
+    VkAttachmentReference *references = (VkAttachmentReference*)malloc(sizeof(*references) * pipeline_descriptor->info.color_attachment_count * resolve_multiplier);
+    assert(references);
 
     bool depth = false;
     VkAttachmentReference depth_reference = {0};
 
-    for (uint32_t i = 0; i < pipeline_descriptor->info.color_attachment_count; ++i) {
+    uint32_t i = 0;
+    for (; i < pipeline_descriptor->info.color_attachment_count; ++i) {
       purrr_pipeline_descriptor_attachment_info_t attachment_info = pipeline_descriptor->info.color_attachments[i];
       attachments[i] = (VkAttachmentDescription){
         0,
         vk_format(renderer_data, attachment_info.format),
-        VK_SAMPLE_COUNT_1_BIT, // TODO:
+        (VkSampleCountFlagBits)1<<attachment_info.sample_count,
         (attachment_info.load?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_CLEAR),
         (attachment_info.store?VK_ATTACHMENT_STORE_OP_STORE:VK_ATTACHMENT_STORE_OP_DONT_CARE),
         VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         VK_ATTACHMENT_STORE_OP_DONT_CARE,
         VK_IMAGE_LAYOUT_UNDEFINED,
-        (attachment_info.present_src?VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+        (attachment_info.present_src?VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:((resolve_multiplier>1)?VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)),
       };
 
-      color_references[i] = (VkAttachmentReference){
+      references[i] = (VkAttachmentReference){
         i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
       };
+    }
+
+    if (pipeline_descriptor->info.resolve_attachments) {
+      for (uint32_t j = 0; j < pipeline_descriptor->info.color_attachment_count; ++j, ++i) {
+        purrr_pipeline_descriptor_attachment_info_t attachment_info = pipeline_descriptor->info.resolve_attachments[j];
+        attachments[i] = (VkAttachmentDescription){
+          0,
+          vk_format(renderer_data, attachment_info.format),
+          (VkSampleCountFlagBits)1<<attachment_info.sample_count,
+          (attachment_info.load?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_CLEAR),
+          (attachment_info.store?VK_ATTACHMENT_STORE_OP_STORE:VK_ATTACHMENT_STORE_OP_DONT_CARE),
+          VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          VK_IMAGE_LAYOUT_UNDEFINED,
+          (attachment_info.present_src?VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+        };
+
+        references[i] = (VkAttachmentReference){
+          i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        };
+      }
     }
 
     if (pipeline_descriptor->info.depth_attachment) {
@@ -736,7 +759,7 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
       attachments[depth_reference.attachment] = (VkAttachmentDescription){
         0,
         vk_format(renderer_data, attachment_info.format),
-        VK_SAMPLE_COUNT_1_BIT, // TODO:
+        (VkSampleCountFlagBits)1<<attachment_info.sample_count,
         (attachment_info.load?VK_ATTACHMENT_LOAD_OP_LOAD:VK_ATTACHMENT_LOAD_OP_CLEAR),
         (attachment_info.store?VK_ATTACHMENT_STORE_OP_STORE:VK_ATTACHMENT_STORE_OP_DONT_CARE),
         VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -750,7 +773,8 @@ bool _purrr_pipeline_descriptor_vulkan_init(_purrr_pipeline_descriptor_t *pipeli
     VkSubpassDescription subpass = {
       .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
       .colorAttachmentCount = pipeline_descriptor->info.color_attachment_count,
-      .pColorAttachments = color_references,
+      .pColorAttachments = references,
+      .pResolveAttachments = references+pipeline_descriptor->info.color_attachment_count,
       .pDepthStencilAttachment = (depth?&depth_reference:NULL),
     };
 
@@ -953,7 +977,7 @@ bool _purrr_pipeline_vulkan_init(_purrr_pipeline_t *pipeline) {
   VkPipelineMultisampleStateCreateInfo multisampling = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
     .sampleShadingEnable = VK_FALSE,
-    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+    .rasterizationSamples = (VkSampleCountFlagBits)1<<pipeline->info.sample_count,
   };
 
   VkPipelineColorBlendAttachmentState color_blend_attachment = {
@@ -1083,7 +1107,7 @@ bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target) {
   _purrr_pipeline_descriptor_data_t *pipeline_descriptor_data = (_purrr_pipeline_descriptor_data_t*)pipeline_descriptor->data_ptr;
   assert(pipeline_descriptor_data);
 
-  render_target->image_count = pipeline_descriptor->info.color_attachment_count+(pipeline_descriptor->info.depth_attachment?1:0);
+  render_target->image_count = pipeline_descriptor->info.color_attachment_count*(pipeline_descriptor->info.resolve_attachments?2:1)+(pipeline_descriptor->info.depth_attachment?1:0);
 
   VkImageView *views = (VkImageView*)malloc(sizeof(*views)*render_target->image_count);
   assert(views);
@@ -1105,12 +1129,28 @@ bool _purrr_render_target_vulkan_init(_purrr_render_target_t *render_target) {
         .width = render_target->width,
         .height = render_target->height,
         .format = attachment_info.format,
+        .sample_count = attachment_info.sample_count,
       };
 
       _purrr_image_t *image = (_purrr_image_t*)purrr_image_create(&info, (purrr_renderer_t*)render_target->renderer);
       if (!image) return false;
       render_target->images[i] = image;
       views[i] = ((_purrr_image_data_t*)image->data_ptr)->image_view;
+    }
+    if (pipeline_descriptor->info.resolve_attachments) {
+      for (uint32_t j = 0; j < pipeline_descriptor->info.color_attachment_count; ++j, ++i) {
+        purrr_pipeline_descriptor_attachment_info_t attachment_info = pipeline_descriptor->info.resolve_attachments[i];
+        purrr_image_info_t info = {
+          .width = render_target->width,
+          .height = render_target->height,
+          .format = attachment_info.format,
+        };
+
+        _purrr_image_t *image = (_purrr_image_t*)purrr_image_create(&info, (purrr_renderer_t*)render_target->renderer);
+        if (!image) return false;
+        render_target->images[i] = image;
+        views[i] = ((_purrr_image_data_t*)image->data_ptr)->image_view;
+      }
     }
     if (i < render_target->image_count) { // depth I think
       purrr_pipeline_descriptor_attachment_info_t attachment_info = *pipeline_descriptor->info.depth_attachment;
@@ -1735,6 +1775,44 @@ void _purrr_renderer_vulkan_cleanup(_purrr_renderer_t *renderer) {
   free(data);
 }
 
+uint32_t _purrr_renderer_vulkan_get_sample_counts(_purrr_renderer_t *renderer, purrr_sample_count_t **array) {
+  _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
+  assert(renderer->initialized && data);
+
+  VkPhysicalDeviceProperties properties = {0};
+  vkGetPhysicalDeviceProperties(data->gpu, &properties);
+
+  VkSampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+  VkSampleCountFlags save = counts;
+
+  uint32_t n = 0;
+  purrr_sample_count_t *sample_counts = NULL;
+  if (array) {
+    while (save > 0) {
+      if (save & 1) ++n;
+      save >>= 1;
+    }
+
+    sample_counts = malloc(sizeof(*sample_counts) * n);
+    assert(sample_counts);
+    n = 0;
+  }
+
+  uint32_t i = 0;
+  while (counts > 0) {
+    if (counts & 1) {
+      if (array) sample_counts[i] = (purrr_sample_count_t)n;
+      ++i;
+    }
+    counts >>= 1;
+    ++n;
+  }
+
+  if (array) *array = sample_counts;
+
+  return i;
+}
+
 bool _purrr_renderer_vulkan_begin_frame(_purrr_renderer_t *renderer, uint32_t *image_index) {
   _purrr_renderer_data_t *data = (_purrr_renderer_data_t*)renderer->data_ptr;
   assert(renderer->initialized && data);
@@ -1771,7 +1849,7 @@ bool _purrr_renderer_vulkan_begin_render_target(_purrr_renderer_t *renderer, _pu
   VkFramebuffer framebuffer = render_target_data->framebuffer;
 
   uint32_t color_count = render_target->descriptor->info.color_attachment_count;
-  uint32_t clear_value_count = color_count+(render_target->descriptor->info.depth_attachment?1:0);
+  uint32_t clear_value_count = color_count*(render_target->descriptor->info.resolve_attachments?2:1)+(render_target->descriptor->info.depth_attachment?1:0);
   VkClearValue *clear_values = malloc(sizeof(*clear_values)*clear_value_count);
   assert(clear_values);
 

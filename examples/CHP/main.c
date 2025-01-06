@@ -114,6 +114,7 @@ int main(void) {
     },
     .descriptor_slots = (purrr_descriptor_type_t[]){ PURRR_DESCRIPTOR_TYPE_TEXTURE },
     .descriptor_slot_count = 1,
+    .sample_count = renderer.sample_count,
   };
 
   purrr_pipeline_t *pipeline = purrr_pipeline_create(&pipeline_info, renderer.renderer);

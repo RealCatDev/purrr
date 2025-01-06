@@ -14,8 +14,10 @@ typedef struct {
   purrr_window_callbacks_t *callbacks;
   purrr_window_t *window;
   purrr_image_t **swapchain_images;
+  purrr_image_t *color_images[2];
   purrr_format_t swapchain_format;
   purrr_renderer_t *renderer;
+  purrr_sample_count_t sample_count;
   purrr_pipeline_descriptor_t *pipeline_descriptor;
   purrr_render_target_t *render_targets[2];
   purrr_render_target_t *current_render_target;
@@ -29,7 +31,29 @@ void free_renderer(renderer_t *renderer);
 #ifdef FRAMEWORK_IMPLEMENTATION
 
 bool create_swapchain(renderer_t *renderer) {
+  uint32_t swapchain_width = 0, swapchain_height = 0;
+  purrr_window_get_size(renderer->window, &swapchain_width, &swapchain_height);
+
+  for (uint32_t i = 0; i < 2; ++i) {
+    purrr_image_info_t info = {
+      .width = swapchain_width,
+      .height = swapchain_height,
+      .format = renderer->swapchain_format,
+      .sample_count = renderer->sample_count,
+    };
+    renderer->color_images[i] = purrr_image_create(&info, renderer->renderer);
+    assert(renderer->color_images[i]);
+  }
+
   purrr_pipeline_descriptor_attachment_info_t color_attachment = {
+    .format = renderer->swapchain_format,
+    .load = false,
+    .store = true,
+    .present_src = !renderer->sample_count,
+    .sample_count = renderer->sample_count,
+  };
+
+  purrr_pipeline_descriptor_attachment_info_t resolve_attachment = {
     .format = renderer->swapchain_format,
     .load = false,
     .store = true,
@@ -38,6 +62,7 @@ bool create_swapchain(renderer_t *renderer) {
 
   purrr_pipeline_descriptor_info_t pipeline_descriptor_info = {
     .color_attachments = &color_attachment,
+    .resolve_attachments = &resolve_attachment,
     .color_attachment_count = 1,
   };
 
@@ -46,11 +71,16 @@ bool create_swapchain(renderer_t *renderer) {
 
   purrr_render_target_info_t render_target_info = {
     .pipeline_descriptor = renderer->pipeline_descriptor,
+    .width = swapchain_width,
+    .height = swapchain_height,
   };
-  purrr_window_get_size(renderer->window, &render_target_info.width, &render_target_info.height);
 
   for (uint32_t i = 0; i < 2; ++i) {
-    render_target_info.images = &renderer->swapchain_images[i];
+    purrr_image_t *images[2] = {
+      renderer->color_images[i],
+      renderer->swapchain_images[i],
+    };
+    render_target_info.images = images;
 
     renderer->render_targets[i] = purrr_render_target_create(&render_target_info, renderer->renderer);
     if (!renderer->render_targets[i]) return false;
@@ -64,6 +94,8 @@ void cleanup_swapchain(renderer_t *renderer) {
   renderer->pipeline_descriptor = NULL;
 
   for (size_t i = 0; i < 2; ++i) {
+    if (renderer->color_images[i]) purrr_image_destroy(renderer->color_images[i]);
+    renderer->color_images[i] = NULL;
     if (renderer->render_targets[i]) purrr_render_target_destroy(renderer->render_targets[i]);
     renderer->render_targets[i] = NULL;
   }
@@ -104,6 +136,11 @@ bool create_renderer(renderer_t *renderer, purrr_window_options_t options, int w
 
   renderer->renderer = purrr_renderer_create(&renderer_info);
   if (!renderer->renderer) return false;
+
+  purrr_sample_count_t *sample_counts = NULL;
+  uint32_t sample_count_count = purrr_renderer_get_sample_counts(renderer->renderer, &sample_counts);
+  assert(sample_count_count);
+  renderer->sample_count = sample_counts[sample_count_count-1];
 
   purrr_renderer_set_user_pointer(renderer->renderer, renderer);
   purrr_renderer_set_resize_callback(renderer->renderer, &resize_renderer);
